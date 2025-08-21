@@ -1,0 +1,9 @@
+{
+  "name": "Betalive AI",
+  "description": "A multi-functional AI assistant application featuring chat, image generation, voice commands, and language translation, with special features for Iraqi culture and history. Powered by betalive software.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ],
+  "prompt": ""
+}
