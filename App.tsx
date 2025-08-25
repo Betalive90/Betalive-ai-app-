@@ -1,2095 +1,1512 @@
 
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Message, AppSettings, Language, ChatSession, EnabledModels, LocationAccess, ThreatScanResult, User, ActiveSession, AuthStatus, ApiCallLog, ThirdPartyApiKeys, Role } from './types';
-import { GoogleGenAI, GenerateContentResponse, Content, Part, Type, Chat } from '@google/genai';
+import { Message, AppSettings, Language, ChatSession, EnabledModels, Role, User, AuthMode, SecurityScanResult, ActivityLog, ThirdPartyIntegrations } from './types';
+import { GoogleGenAI, GenerateContentResponse, Content, Part, Type } from '@google/genai';
 
-declare var YT: any;
 
-// --- AI SERVICE ABSTRACTION LAYER ---
+// --- POLICIES (HTML Content) ---
+const RESPONSIBLE_AI_POLICY_HTML = `<style>
+  [data-custom-class='body'], [data-custom-class='body'] * {
+          background: transparent !important;
+        }
+[data-custom-class='title'], [data-custom-class='title'] * {
+          font-family: Arial !important;
+font-size: 26px !important;
+color: #ffffff !important;
+        }
+[data-custom-class='subtitle'], [data-custom-class='subtitle'] * {
+          font-family: Arial !important;
+color: #a0aec0 !important;
+font-size: 14px !important;
+        }
+[data-custom-class='heading_1'], [data-custom-class='heading_1'] * {
+          font-family: Arial !important;
+font-size: 19px !important;
+color: #ffffff !important;
+        }
+[data-custom-class='heading_2'], [data-custom-class='heading_2'] * {
+          font-family: Arial !important;
+font-size: 17px !important;
+color: #ffffff !important;
+        }
+[data-custom-class='body_text'], [data-custom-class='body_text'] * {
+          color: #cbd5e0 !important;
+font-size: 14px !important;
+font-family: Arial !important;
+        }
+[data-custom-class='link'], [data-custom-class='link'] * {
+          color: #63b3ed !important;
+font-size: 14px !important;
+font-family: Arial !important;
+word-break: break-word !important;
+        }
+</style>
+      <div data-custom-class="body">
+      <div data-custom-class="title" style="line-height: 1.5;"><strong><span style="font-size: 26px;"><bdt class="block-component"></bdt><bdt class="question"><h1>RESPONSIBLE AI POLICY</h1></bdt><bdt class="statement-end-if-in-editor"></bdt></span></strong></div><div data-custom-class="subtitle" style="line-height: 1.5;"><strong>Last updated</strong> <bdt class="question"><strong>October 01, 2025</strong></bdt></div><div style="line-height: 1.2;"><br></div><div style="line-height: 1.5;"><br></div><div style="line-height: 1.5;"><br></div><div data-custom-class="body_text" style="line-height: 1.5;">This <bdt class="block-component"></bdt><bdt class="question">Responsible AI Policy</bdt><bdt class="statement-end-if-in-editor"></bdt> (<bdt class="block-component"></bdt>"<strong>Policy</strong>"<bdt class="statement-end-if-in-editor"></bdt>) is part of our <bdt class="question">Terms of Use</bdt> (<bdt class="block-component"></bdt>"<strong>Legal Terms</strong>"<bdt class="statement-end-if-in-editor"></bdt>) and should therefore be read alongside our main Legal Terms: <span style="color: rgb(0, 58, 250);"><bdt class="question"><a href="https://betalive2023.blogspot.com/2024/05/betalive-community-guide-lines.html" target="_blank" data-custom-class="link">https://betalive2023.blogspot.com/2024/05/betalive-community-guide-lines.html</a></bdt></span>. <bdt class="block-component"></bdt>When you use the AI-powered services provided by <bdt class="question">Betalive </bdt> (<bdt class="block-component"></bdt>"<strong>AI Products</strong>"<bdt class="statement-end-if-in-editor"></bdt>), you warrant that you will comply with this document, our Legal Terms and all applicable laws and regulations governing AI. Your usage of our AI Products signifies your agreement to engage with our platform in a lawful, ethical, and responsible manner that respects the rights and dignity of all individuals. <bdt class="statement-end-if-in-editor"></bdt>If you do not agree with these Legal Terms, please refrain from using our Services. Your continued use of our Services implies acceptance of these Legal Terms.</div><div style="line-height: 1;"><br></div><div data-custom-class="body_text" style="line-height: 1.5;">Please carefully review this Policy which applies to any and all:</div><div style="line-height: 1;"><br></div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">(a) uses of our Services (as defined in <bdt class="block-component"></bdt>"Legal Terms"<bdt class="statement-end-if-in-editor"></bdt>)</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">(b) forms, materials, consent tools, comments, post, and all other content available on the Services (<bdt class="block-component"></bdt>"<strong>Content</strong>"<bdt class="statement-end-if-in-editor"></bdt>) <bdt class="block-component"></bdt></div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">(c) material which you contribute to the Services including any upload, post, review, disclosure, ratings, comments, chat etc.<bdt class="block-component"></bdt> in any forum, chatrooms, reviews, and to any interactive services associated with it<bdt class="statement-end-if-in-editor"></bdt> (<bdt class="block-component"></bdt>"<strong>Contribution</strong>"<bdt class="statement-end-if-in-editor"></bdt>)<bdt class="block-component"></bdt></div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">(d) responsible implementation and management of AI Products within our Services<bdt class="statement-end-if-in-editor"></bdt></div><div style="line-height: 1.5;"><br></div><div data-custom-class="heading_1" style="line-height: 1.5;"><strong><span style="font-size: 19px;"><h2>WHO WE ARE</h2></span></strong></div><div data-custom-class="body_text" style="line-height: 1.5;">We are <bdt class="question">Betalive </bdt><bdt class="block-component"></bdt> (<bdt class="block-component"></bdt>"<strong>Company</strong>," "<strong>we</strong>," "<strong>us</strong>," or "<strong>our</strong>"<bdt class="statement-end-if-in-editor"></bdt>) a company registered in <bdt class="block-component"></bdt><bdt class="question">Canada</bdt></bdt></bdt> at <bdt class="question">__________</bdt><bdt class="block-component"></bdt>, <bdt class="question">__________</bdt><bdt class="block-component"></bdt>, <bdt class="question">British Columbia</bdt><bdt class="block-component"></bdt><bdt class="block-component"></bdt>. We operate <bdt class="block-component"></bdt>the website <span style="color: rgb(0, 58, 250);"><bdt class="question"><a href="https://betalive-enterprise.ikol.com/#/?mobile_chat=1" target="_blank" data-custom-class="link">https://betalive-enterprise.ikol.com/#/?mobile_chat=1</a></bdt></span> (the <bdt class="block-component"></bdt>"<strong>Site</strong>"<bdt class="statement-end-if-in-editor"></bdt>)<bdt class="statement-end-if-in-editor"></bdt><bdt class="block-component"></bdt>, <bdt class="statement-end-if-in-editor"></bdt><bdt class="block-component"></bdt>the mobile application <bdt class="question">Betalive </bdt> (the <bdt class="block-component"></bdt>"<strong>App</strong>"<bdt class="statement-end-if-in-editor"></bdt>)<bdt class="statement-end-if-in-editor"></bdt>, as well as any other related products and services that refer or link to this Policy (collectively, the <bdt class="block-component"></bdt>"<strong>Services</strong>"<bdt class="statement-end-if-in-editor"></bdt>).</div><div style="line-height: 1.5;"><br></div><div data-custom-class="heading_1" style="line-height: 1.5;"><strong><span style="font-size: 19px;"><h2>USE OF THE SERVICES</h2></span></strong></div><div data-custom-class="body_text" style="line-height: 1.5;">When you use the Services, you warrant that you will comply with this Policy and with all applicable laws.</div><div style="line-height: 1;"><br></div><div data-custom-class="body_text" style="line-height: 1.5;">When you use our AI Products, you agree that you will not use our AI Products to:</div><div style="line-height: 1;"><br></div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Breach, or otherwise circumvent, any security or authentication measures.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Probe, scan, or test the vulnerability of any system or network.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Develop any third-party applications that interact with our AI Products, without our prior written consent.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Use any data mining, robots, or similar data gathering and extraction methods in connection with our AI Products.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Interfere or disrupt any user, host, or network, for example by sending a virus, overloading, flooding, spamming, or mail-bombing any part of our AI Products.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Use our AI Products for any illegal, harmful, or abusive activity.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Use our AI Products to generate or disseminate sexually explicit or pornographic material, or any content that is violent, hateful, or discriminatory.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Use our AI Products to generate or disseminate unsolicited or unwanted email (spam).</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Use our AI Products to generate or disseminate content that is fraudulent, deceptive, or misleading.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Use our AI Products to generate or disseminate content that infringes on the intellectual property rights of others.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Use our AI Products to generate or disseminate content that is defamatory, libelous, or slanderous.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Use our AI Products to generate or disseminate content that is threatening, harassing, or abusive.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Use our AI Products to generate or disseminate content that is otherwise objectionable.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Use our AI Products to develop models that compete with us.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Extract data from our AI Products.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Misrepresent the output of our AI Products as human-generated.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Manipulate or otherwise exploit our AI Products for any purpose, including but not limited to, for financial gain, political purposes, or to harm others.</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Use our AI Products in a way that violates any applicable law, including but not limited to, laws governing privacy, intellectual property, and export controls.</div><div style="line-height: 1.5;"><br></div><div data-custom-class="heading_1" style="line-height: 1.5;"><strong><span style="font-size: 19px;"><h2>SAFETY AND MODERATION</h2></span></strong></div><div data-custom-class="body_text" style="line-height: 1.5;">We prioritize a safe and positive environment and strictly prohibit the use of our Services for generating harmful content including, but not limited to:</div><div style="line-height: 1;"><br></div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Sexually explicit materials</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Hateful or violent content</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Harassment</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Self-harm</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Misinformation</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Disinformation</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Malicious code</div><div data-custom-class="body_text" style="line-height: 1.5; margin-left: 20px;">- Spam</div><div style="line-height: 1.5;"><br></div><div data-custom-class="heading_1" style="line-height: 1.5;"><strong><span style="font-size: 19px;"><h2>USER-GENERATED CONTENT</h2></span></strong></div><div data-custom-class="body_text" style="line-height: 1.5;">Our AI Products may accept user-submitted content. Such content remains the intellectual property of its creator. By submitting content, you grant us a license to use it in connection with our Services.</div><div style="line-height: 1.5;"><br></div><div data-custom-class="heading_1" style="line-height: 1.5;"><strong><span style="font-size: 19px;"><h2>INTELLECTUAL PROPERTY</h2></span></strong></div><div data-custom-class="body_text" style="line-height: 1.5;">We respect the intellectual property rights of others. Users are prohibited from using our AI Products to infringe on any copyrights, trademarks, or other proprietary rights.</div><div style="line-height: 1.5;"><br></div><div data-custom-class="heading_1" style="line-height: 1.5;"><strong><span style="font-size: 19px;"><h2>ACCURACY AND RELIABILITY</h2></span></strong></div><div data-custom-class="body_text" style="line-height: 1.5;">While we strive for accuracy, our AI Products may not always be correct or complete. We are not liable for any errors or omissions in the content provided.</div><div style="line-height: 1.5;"><br></div><div data-custom-class="heading_1" style="line-height: 1.5;"><strong><span style="font-size: 19px;"><h2>PRIVACY AND DATA</h2></span></strong></div><div data-custom-class="body_text" style="line-height: 1.5;">We are committed to protecting user privacy. Our Privacy Policy details how we collect, use, and share data.</div><div style="line-height: 1.5;"><br></div><div data-custom-class="heading_1" style="line-height: 1.5;"><strong><span style="font-size: 19px;"><h2>POLICY ENFORCEMENT</h2></span></strong></div><div data-custom-class="body_text" style="line-height: 1.5;">We will investigate any reported violations of this Policy. We reserve the right to remove content and/or suspend or terminate user accounts that violate our terms.</div><div style="line-height: 1.5;"><br></div><div data-custom-class="heading_1" style="line-height: 1.5;"><strong><span style="font-size: 19px;"><h2>CONTACT US</h2></span></strong></div><div data-custom-class="body_text" style="line-height: 1.5;">If you have any questions or concerns about this Policy, please contact us at:</div><div style="line-height: 1.5;"><br></div><div data-custom-class="body_text" style="line-height: 1.5;"><bdt class="question">Betalive </bdt></div><div data-custom-class="body_text" style="line-height: 1.5;"><bdt class="question">__________</bdt></div><div data-custom-class="body_text" style="line-height: 1.5;"><bdt class="question">__________</bdt><bdt class="block-component"></bdt>, <bdt class="question">British Columbia</bdt><bdt class="block-component"></bdt></div><div data-custom-class="body_text" style="line-height: 1.5;"><bdt class="question">Canada</bdt></div><div data-custom-class="body_text" style="line-height: 1.5;">Phone: <bdt class="question">__________</bdt></div><div data-custom-class="body_text" style="line-height: 1.5;"><bdt class="question">infobetalive@protonmail.com</bdt></div></div>`;
 
-const AiService = {
-  getProvider(settings: AppSettings): 'gemini' | 'openai' {
-    if (settings.developerMode && settings.enableThirdPartyIntegrations) {
-      return settings.activeThirdPartyModel;
-    }
-    return 'gemini';
-  },
-
-  createChat(ai: GoogleGenAI, config: any): Chat {
-     return ai.chats.create(config);
-  },
-
-  async sendMessage(chat: Chat, payload: any) {
-    return chat.sendMessage(payload);
-  },
-
-  async generateContent(ai: GoogleGenAI, settings: AppSettings, params: any): Promise<GenerateContentResponse> {
-    const provider = this.getProvider(settings);
-    if (provider === 'openai') {
-        console.log(`--- SIMULATING API CALL TO OPENAI ---`);
-        console.log(`API Key: ${settings.thirdPartyApiKeys.openai.substring(0, 8)}...`);
-        console.log(`Prompt: `, params.contents);
-        // Modify system prompt to simulate the other model, then call Gemini
-        const simPrompt = `(SIMULATION MODE: Respond as if you are OpenAI's GPT model.)\n\n${params.contents}`;
-        return ai.models.generateContent({ ...params, contents: simPrompt });
-    }
-    // Default to Gemini
-    return ai.models.generateContent(params);
-  },
-
-  async generateImages(ai: GoogleGenAI, settings: AppSettings, params: any) {
-    const provider = this.getProvider(settings);
-     if (provider === 'gemini') {
-      return ai.models.generateImages(params);
-    }
-    // In a real app, you would add logic here to call DALL-E or other services
-    console.log("Image generation is currently only supported via Gemini. Falling back.");
-    return ai.models.generateImages(params);
-  },
-};
-
-// --- TRANSLATIONS ---
-const translations = {
-  ar: {
-    chatTitle: "Betalive AI",
-    chatSubtitle: "المساعد الشخصي الذكي",
-    settingsTitle: "الإعدادات",
-    ageVerificationTitle: "التحقق من العمر",
-    initialMessage: "مرحباً! أنا مساعدك الشخصي Betalive AI. كيف يمكنني مساعدتك اليوم؟",
-    appleIntelligenceInitialMessage: "مرحباً! أنا Apple Intelligence، مساعدك الشخصي من Betalive AI. كيف يمكنني مساعدتك اليوم؟",
-    inputPlaceholder: "اكتب رسالتك أو الصق رابط فيديو...",
-    errorApi: "فشل في تهيئة المساعد الذكي. يرجى التأكد من تكوين مفتاح API.",
-    errorGeneral: "عذراً، حدث خطأ ما. يرجى المحاولة مرة أخرى.",
-    send: "إرسال",
-    agePrompt: "يرجى إدخال تاريخ ميلادك للمتابعة. يجب أن يكون عمرك 13 عامًا أو أكثر.",
-    ageErrorDate: "الرجاء إدخال تاريخ ميلادك الكامل.",
-    ageError18: "يجب أن يكون عمرك 13 عامًا أو أكثر لاستخدام هذه الخدمة.",
-    year: "سنة",
-    month: "شهر",
-    day: "يوم",
-    verify: "تحقق",
-    done: "تم",
-    generating: "جار الإنشاء...",
-    cancel: "إلغاء",
-    newChat: "دردشة جديدة",
-    imageGenerating: "جارٍ إنشاء صورة لـ:",
-    imageDone: "تفضل، هذه هي الصورة التي طلبتها.",
-    imagineHint: "استخدم /imagine <prompt> لإنشاء صورة.",
-    playgroundError: "فشل إنشاء الصورة. يرجى المحاولة مرة أخرى.",
-    chatHistory: "سجل الدردشة",
-    deleteChat: "حذف الدردشة",
-    confirmDelete: "هل أنت متأكد أنك تريد حذف هذه الدردشة؟",
-    delete: "حذف",
-    general: "عام",
-    language: "اللغة",
-    aiModelsTitle: "نماذج الذكاء الاصطناعي",
-    aiModelsInfo: "يعمل هذا التطبيق كعميل لواجهة برمجة تطبيقات Google Gemini. لأسباب أمنية وتقنية، لا يمكنه تشغيل نماذج أخرى مثل Meta Llama مباشرة. تعمل مفاتيح التبديل هنا على تكييف شخصية الذكاء الاصطناعي لمحاكاة نماذج مختلفة، ولكن يتم إنشاء جميع الردود بواسطة Google Gemini.",
-    openai: "OpenAI ChatGPT",
-    meta: "Meta AI",
-    amazon: "Amazon AI",
-    microsoft: "Microsoft Copilot",
-    appleIntelligenceTitle: "Apple Intelligence",
-    appleIntelligenceDesc: "تمكين ميزات الذكاء الاصطناعي المحسنة مثل إنشاء الصور والبحث البصري.",
-    enableAppleIntelligence: "تمكين الميزات المحسنة",
-    voiceSettings: "الصوت والكلام",
-    enableVoiceCommands: "تمكين الأوامر الصوتية",
-    textToSpeech: "قراءة الردود بصوت عالٍ",
-    ttsVoice: "صوت الذكاء الاصطناعي",
-    privacyAndSecurity: "الخصوصية والأمان",
-    allowMicrophone: "السماح بالوصول إلى الميكروفون",
-    allowCamera: "السماح بالوصول إلى الكاميرا",
-    permissionDeniedMic: "الوصول إلى الميكروفون معطل في الإعدادات.",
-    permissionDeniedCam: "الوصول إلى الكاميرا معطل في الإعدادات.",
-    saveConversations: "سجل المحادثات",
-    logActivity: "تسجيل النشاط",
-    improveAI: "تحسين نماذج الذكاء الاصطناعي",
-    searchingGoogle: "جاري البحث باستخدام جوجل...",
-    sources: "المصادر:",
-    webSearch: "بحث الويب",
-    version: "الإصدار",
-    localCodeSectionTitle: "تعليمات مخصصة",
-    localCodeSectionDesc: "قدّم تعليمات مخصصة لتحديد كيف يجب أن يستجيب الذكاء الاصطناعي. يمكنك تعيين شخصية محددة أو نبرة أو قواعد ليتبعها. سيتم تطبيق التغييرات على المحادثات الجديدة.",
-    enableCustomInstructions: "تمكين التعليمات المخصصة",
-    systemPromptPlaceholder: "مثال: أنت مساعد ذكاء اصطناعي مميز، تكلم باللهجة العراقية.",
-    appleIntelligenceWelcome: "Apple Intelligence",
-    getDirections: "الحصول على اتجاهات إلى المنزل",
-    playPlaylist: "تشغيل قائمة أغاني الرحلة",
-    shareETA: "مشاركة وقت وصولي مع صديق",
-    carModeTitle: "وضع السيارة",
-    enableCarMode: "تمكين وضع السيارة",
-    carModeWelcome: "وضع السيارة",
-    carGetDirections: "الحصول على اتجاهات للعمل",
-    carPlayMusic: "تشغيل قائمة أغاني القيادة",
-    carCallContact: "اتصل بسارة",
-    carPlaySong: "تشغيل أغنية",
-    carSearchMusic: "البحث عن موسيقى",
-    proofread: "تدقيق لغوي",
-    rewrite: "إعادة صياغة",
-    summarize: "تلخيص",
-    attachImages: "إرفاق صور",
-    removeImage: "إزالة الصورة",
-    visualLookupTitle: "البحث البصري",
-    visualLookupDesc: "تعرف على الأشياء في صورة أو من الكاميرا.",
-    useCamera: "استخدم الكاميرا",
-    uploadImage: "تحميل صورة",
-    capture: "التقاط",
-    identifying: "جار التعرف...",
-    identify: "تعرف",
-    retake: "إعادة التقاط",
-    back: "رجوع",
-    photoMetadataPrivacyTitle: "خصوصية بيانات الصور الوصفية",
-    photoMetadataPrivacyDesc: "يزيل البيانات التعريفية من الصور المرفوعة لخصوصية معززة.",
-    objectRecognition: "التعرف على الأشياء",
-    close: "إغلاق",
-    enableCallIntegration: "تمكين إجراء المكالمات والمراسلة",
-    enableCallIntegrationDesc: "يسمح للذكاء الاصطناعي بإنشاء روابط لإجراء مكالمات أو إرسال رسائل باستخدام تطبيقات جهازك.",
-    carModeInstructionsTitle: "دليل الاتصال بالسيارة",
-    carModeInstruction1: "1. قم بتوصيل هاتفك بنظام الصوت في سيارتك عبر البلوثوث.",
-    carModeInstruction2: "2. تأكد من تشغيل صوت الوسائط من هاتفك عبر سماعات السيارة.",
-    carModeInstruction3: "3. تفاعل مع الذكاء الاصطناعي صوتياً لتجربة قيادة آمنة، أو استخدم أزرار الإجراءات السريعة على الشاشة.",
-    carModeInstruction4: "4. لسلامتك، استخدم لوحة المفاتيح لكتابة الرسائل فقط عندما تكون السيارة متوقفة تماماً.",
-    carKeyboardWarning: "للسلامة، لا تستخدم لوحة المفاتيح أثناء القيادة.",
-    hideIpAddressTitle: "إخفاء عنوان IP",
-    hideIpAddressDesc: "محاولة لإخفاء عنوان IP الخاص بك. للحماية الكاملة، استخدم خدمة VPN مخصصة.",
-    locationAccessTitle: "الوصول إلى الموقع",
-    locationAccessDenied: "رفض",
-    locationAccessApproximate: "تقريبي",
-    locationAccessGranted: "سماح",
-    securityReportTitle: "تقرير الأمان",
-    viewSecurityReport: "عرض تقرير الأمان",
-    yourSecurityScore: "درجة الأمان الخاصة بك",
-    securityStatus: "حالة الأمان",
-    securityRecTitle: "التوصيات",
-    recSaveConvo: "عطّل 'حفظ المحادثات' لأقصى قدر من الخصوصية.",
-    recMic: "عطّل الوصول إلى الميكروفون عند عدم الاستخدام.",
-    recCam: "عطّل الوصول إلى الكاميرا عند عدم الاستخدام.",
-    recPhoto: "فعّل 'خصوصية بيانات الصور الوصفية' لإزالة البيانات من الصور.",
-    recIp: "فعّل 'إخفاء عنوان IP' لطبقة إضافية من الخصوصية.",
-    recLocation: "اضبط 'الوصول إلى الموقع' على 'رفض' أو 'تقريبي'.",
-    allGood: "كل شيء ممتاز! إعدادات الأمان لديك ممتازة.",
-    speechRecognitionTitle: "التعرف على الكلام",
-    speechRecognitionDesc: "يسمح للتطبيق بالتعرف على صوتك للأوامر. قد يختلف التوافق حسب المتصفح والجهاز (مثل أندرويد مقابل iOS).",
-    nowPlaying: "قيد التشغيل الآن",
-    unknownSong: "أغنية غير معروفة",
-    unknownArtist: "فنان غير معروف",
-    stopMusic: "إيقاف الموسيقى",
-    openInYouTube: "فتح في يوتيوب",
-    openInSpotify: "فتح في سبوتيفاي",
-    couldNotPlaySuffix: "\n\nلم أتمكن من العثور على فيديو لتشغيله تلقائيًا، ولكن يمكنك تجربة الروابط أدناه.",
-    iraqiCultureTitle: "الثقافة والتاريخ العراقي",
-    exploreMuseum: "اكتشف المتحف العراقي",
-    historyOfBaghdad: "تاريخ بغداد",
-    whoIsHammurabi: "من هو حمورابي؟",
-    iraqiCuisine: "أشهر الأكلات العراقية",
-    codingInIraq: "أهمية البرمجة في العراق",
-    devJobsForGrads: "وظائف برمجية للخريجين",
-    iraqiTalentTitle: "مبادرة المبرمج العراقي",
-    iraqiTalentDesc: "اكتشف كيف يساهم تطوير البرمجيات في خلق فرص عمل جديدة للخريجين في العراق ورسم مستقبل قطاع التكنولوجيا فيه.",
-    enableCareerGuidance: "تفعيل التوجيه المهني",
-    videoAnalysis: "تحليل الفيديو",
-    videoUrlPlaceholder: "تم اكتشاف رابط فيديو من يوتيوب أو فيسبوك.",
-    keyMoments: "النقاط الرئيسية",
-    analyzeContent: "تحليل المحتوى",
-    clear: "مسح",
-    summarizingVideo: "جارٍ تلخيص الفيديو...",
-    findingKeyMoments: "جارٍ البحث عن النقاط الرئيسية...",
-    analyzingVideo: "جارٍ تحليل الفيديو...",
-    threatScanTitle: "فحص تهديدات الأمان",
-    threatScanDesc: "حلل محادثاتك وإعدادات تطبيقك بحثًا عن تهديدات أمنية محتملة. لإجراء التحليل، يتم إرسال بياناتك إلى الذكاء الاصطناعي عبر اتصال آمن ومشفّر. على الرغم من أنها ليست مشفرة من طرف إلى طرف (يحتاج الذكاء الاصطناعي لقراءتها)، فإن بياناتك محمية أثناء النقل.",
-    startScan: "بدء الفحص",
-    scanning: "جاري الفحص...",
-    scanComplete: "اكتمل الفحص",
-    noThreatsFound: "لم يتم العثور على تهديدات أمنية. تبدو بياناتك نظيفة.",
-    threatsFound: "تم العثور على {count} تهديدات محتملة.",
-    piiSectionTitle: "كشف البيانات الحساسة",
-    piiDescription: "قد تحتوي الرسائل التالية على معلومات تعريف شخصية. ضع في اعتبارك حذفها لخصوصية أفضل.",
-    linkSectionTitle: "روابط مشبوهة",
-    linkDescription: "تم الإبلاغ عن الروابط التالية على أنها قد تكون مشبوهة. تجنب فتحها.",
-    scanForThreats: "فحص التهديدات",
-    inMessage: "في رسالة:",
-    flaggedUrl: "الرابط المبلغ عنه:",
-    reason: "السبب:",
-    errorThreatScan: "تعذر إكمال فحص الأمان. يرجى المحاولة مرة أخرى لاحقًا.",
-    appScanSectionTitle: "تحليل أمان التطبيق",
-    appScanDescription: "قد تشكل تكوينات الإعدادات التالية خطرًا أمنيًا.",
-    setting: "الإعداد",
-    issue: "المشكلة المحتملة",
-    recommendation: "التوصية",
-    applyRecommendations: "تطبيق التوصيات",
-    recommendationsApplied: "تم تطبيق التوصيات!",
-    privacyPolicy: "سياسة الخصوصية",
-    privacyPolicyTitle: "سياسة الخصوصية",
-    privacyPolicyContent: `(المحتوى باللغة الإنجليزية)
-Last updated: July 25, 2024
-
-Betalive AI ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.
-
-**1. Information We Collect**
-- **Account Information:** When you register, we collect your email address and a password hash.
-- **Conversation Data:** We collect the messages you send and receive to provide the chat functionality. If you enable "Save Conversations," this data is stored in your browser's local storage.
-- **Settings:** We store your application preferences and settings in local storage.
-- **Usage Data:** If "Log Activity" is enabled, we may collect anonymous data about your interactions with the app to improve our services. This does not include conversation content.
-
-**2. How We Use Your Information**
-- To provide and maintain the application's features.
-- To process your requests and send them to the Google Gemini API.
-- To personalize your experience based on your settings.
-- To improve the application with anonymous usage data.
-
-**3. Data Sharing and Disclosure**
-- **Google Gemini API:** Your conversation prompts are sent to Google's servers to generate responses. We do not control how Google uses this data. Please refer to Google's Privacy Policy.
-- **No Other Third Parties:** We do not sell, trade, or otherwise transfer your personally identifiable information to outside parties.
-
-**4. Data Storage and Security**
-- Your account data, conversations (if saved), and settings are stored in your browser's local storage on your device.
-- We implement security measures to protect your data, but no method of transmission over the Internet or method of electronic storage is 100% secure.
-
-**5. Your Choices**
-- You can manage your privacy settings within the app's Settings panel.
-- You can choose not to save conversations, which will delete them when you close the session.
-- You can delete your account and all associated data.
-
-**6. Contact Us**
-If you have any questions about this Privacy Policy, please contact us at privacy@betalive.dev.
-`,
-    conversationRetentionPolicyTitle: "سياسة الاحتفاظ بالمحادثات",
-    retentionForever: "الاحتفاظ بها دائمًا",
-    retentionOnClose: "الحذف عند الإغلاق",
-    retentionPolicyDesc: "إذا كان 'حفظ المحادثات' مُفعّلاً، فإن خيار 'الحذف عند الإغلاق' يوفر تخزينًا مؤقتًا.",
-    textToSpeechWarning: "لخصوصيتك، كن على دراية بمحيطك عند تفعيل هذه الميزة حيث تتم قراءة الردود بصوت عالٍ.",
-    logActivityDesc: "يساعد في تحسين التطبيق عن طريق تسجيل تفاعلات المستخدم مجهولة الهوية. لا يتم تسجيل محتوى المحادثة مطلقًا.",
-    // Auth & Security
-    loginTitle: "تسجيل الدخول",
-    registerTitle: "إنشاء حساب",
-    email: "البريد الإلكتروني",
-    password: "كلمة المرور",
-    confirmPassword: "تأكيد كلمة المرور",
-    login: "تسجيل الدخول",
-    register: "تسجيل",
-    switchToRegister: "ليس لديك حساب؟ سجل الآن",
-    switchToLogin: "هل لديك حساب بالفعل؟ سجل الدخول",
-    logout: "تسجيل الخروج",
-    errorUserExists: "هذا البريد الإلكتروني مسجل بالفعل.",
-    errorUserNotFound: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
-    errorPasswordMatch: "كلمتا المرور غير متطابقتين.",
-    errorInvalidEmail: "البريد الإلكتروني غير صالح.",
-    errorPasswordWeak: "كلمة المرور ضعيفة جدًا.",
-    passwordStrength: "قوة كلمة المرور",
-    strengthWeak: "ضعيفة",
-    strengthMedium: "متوسطة",
-    strengthStrong: "قوية",
-    accountAndSecurity: "الحساب والأمان",
-    changePassword: "تغيير كلمة المرور",
-    twoFactorAuth: "المصادقة الثنائية",
-    activeSessions: "الجلسات النشطة",
-    accountActions: "إجراءات الحساب",
-    exportData: "تصدير بياناتي",
-    deleteAccount: "حذف الحساب",
-    developerMode: "وضع المطور",
-    advanced: "متقدم",
-    enable2FA: "تمكين المصادقة الثنائية",
-    disable2FA: "تعطيل المصادقة الثنائية",
-    "2faDescription": "أضف طبقة إضافية من الأمان إلى حسابك. امسح رمز الاستجابة السريعة هذا باستخدام تطبيق المصادقة الخاص بك.",
-    verificationCode: "رمز التحقق",
-    verifyCode: "تحقق",
-    "2faEnabledSuccess": "تم تمكين المصادقة الثنائية بنجاح.",
-    "2faDisabledSuccess": "تم تعطيل المصادقة الثنائية بنجاح.",
-    currentDevice: "الجهاز الحالي",
-    lastActive: "آخر نشاط",
-    confirmDeleteAccount: "هل أنت متأكد؟ هذا الإجراء لا يمكن التراجع عنه. أدخل بريدك الإلكتروني للتأكيد.",
-    privacyCheckup: "فحص الخصوصية",
-    privacyCheckupDesc: "قم بمراجعة إعدادات الخصوصية الرئيسية الخاصة بك بسرعة.",
-    // New Developer Mode
-    developerOptions: "خيارات المطور",
-    apiCallInspector: "مفتش استدعاءات API",
-    viewApiLogs: "عرض سجلات API",
-    enableApiLogging: "تمكين تسجيل استدعاءات API",
-    apiLoggingDesc: "يسجل طلبات واستجابات API الخام لأغراض التصحيح.",
-    privacySandbox: "صندوق حماية الخصوصية",
-    enablePrivacySandbox: "تمكين صندوق حماية الخصوصية",
-    privacySandboxDesc: "تفعيل ميزات اختبار الخصوصية التجريبية مثل تنقيح PII.",
-    forceEphemeral: "فرض الجلسات المؤقتة",
-    forceEphemeralDesc: "يتجاوز إعدادات المستخدم ويحذف جميع المحادثات عند تسجيل الخروج.",
-    request: "الطلب",
-    response: "الاستجابة",
-    noApiLogs: "لم يتم تسجيل أي استدعاءات API بعد.",
-    redactedMessageTooltip: "تم تنقيح هذه الرسالة بواسطة صندوق حماية الخصوصية.",
-    // New PIN Protection
-    pinModalTitle: "الوصول للمطور",
-    pinModalPrompt: "أدخل رمز PIN لتمكين وضع المطور.",
-    pinModalError: "رمز PIN غير صحيح. يرجى المحاولة مرة أخرى.",
-    verifyPin: "تحقق",
-    // New Experimental Features
-    sensitiveTopicWarningTooltip: "قد تحتوي هذه الرسالة على مواضيع حساسة.",
-    configure: "تكوين",
-    redactionLevel: "مستوى التنقيح",
-    standardRedaction: "تنقيح قياسي",
-    standardRedactionDesc: "ينقح معلومات التعريف الشخصية الشائعة مثل رسائل البريد الإلكتروني وأرقام الهواتف.",
-    aggressiveRedaction: "تنقيح متقدم",
-    aggressiveRedactionDesc: "يحاول أيضًا تنقيح الأسماء المحتملة والعناوين الفعلية.",
-    sensitiveTopicWarning: "التحذير من المواضيع الحساسة",
-    sensitiveTopicWarningDesc: "يضع علامة على رسائل المستخدم التي قد تحتوي على مواضيع حساسة دون تنقيحها.",
-    systemPromptOverride: "تجاوز موجه النظام",
-    systemPromptOverrideDesc: "يتجاوز بشكل مؤقت موجهات النظام الافتراضية والمخصصة لهذه الجلسة فقط. امسح النص لإعادة التعيين.",
-    systemPromptOverridePlaceholder: "مثال: أنت مساعد ساخر يرد بتهكم دائمًا.",
-    simulateLatency: "محاكاة زمن استجابة الشبكة",
-    simulateLatencyDesc: "يضيف تأخيرًا مصطنعًا لاستجابات الذكاء الاصطناعي لاختبار حالات التحميل.",
-    devOverrideActive: "التجاوز نشط",
-    // Quick Actions
-    quickActions: "إجراءات سريعة",
-    writingTools: "أدوات الكتابة",
-    improveWriting: "تحسين الكتابة",
-    summarizeText: "تلخيص النص",
-    changeTone: "تغيير النبرة",
-    translate: "ترجمة",
-    ideaGeneration: "توليد الأفكار",
-    brainstormIdeas: "عصف ذهني للأفكار",
-    writePoem: "كتابة قصيدة",
-    createStory: "إنشاء قصة",
-    tone_professional: " احترافي",
-    tone_casual: "غير رسمي",
-    tone_friendly: "ودي",
-    selectLanguage: "اختر لغة",
-    generatingAction: "الذكاء الاصطناعي يعمل...",
-    errorQuickAction: "عذراً، لم أتمكن من إكمال هذا الإجراء. يرجى المحاولة مرة أخرى.",
-    actionRequiresText: "يتطلب هذا الإجراء كتابة بعض النصوص أولاً.",
-    codeTools: "أدوات المبرمج",
-    explainCode: "شرح الكود",
-    debugCode: "تصحيح الكود",
-    optimizeCode: "تحسين الكود",
-    // New Modular Architecture
-    thirdPartyIntegrationsTitle: "تكوين عمليات التكامل",
-    thirdPartyIntegrationsDesc: "قم بتمكين وتكوين نماذج الذكاء الاصطناعي من جهات خارجية.",
-    enableThirdPartyIntegrations: "تمكين إطار التكامل",
-    openaiApiKey: "مفتاح OpenAI API",
-    activeModel: "النموذج النشط",
-    modelGemini: "Google Gemini (الافتراضي)",
-    modelOpenAI: "OpenAI GPT-4 (محاكاة)",
-    integrationCodeTitle: "عنصر واجهة قابل للتضمين",
-    integrationCodeDesc: "انسخ أحد القصاصات أدناه لتضمين أداة الدردشة Betalive AI مباشرة في موقعك. الأداة تعمل بكامل طاقتها وتتصل بإعدادات حسابك.",
-    yourApiKey: "مفتاح API لموقع الويب الخاص بك",
-    generateNewKey: "إنشاء مفتاح جديد",
-    copyCode: "نسخ الكود",
-    copied: "تم النسخ!",
-    embeddableWidget: "عنصر واجهة قابل للتضمين",
-    fullSnippetTitle: "موصى به: Iframe مع حاوية",
-    fullSnippetDesc: "حاوية منسقة لعرض نظيف.",
-    htmlOnlySnippetTitle: "HTML فقط",
-    htmlOnlySnippetDesc: "علامة iframe فقط بدون تنسيق.",
-    // New PII Warning
-    piiSendWarningTitle: "تحذير قبل إرسال معلومات حساسة",
-    piiSendWarningDesc: "عرض تنبيه تأكيد قبل إرسال الرسائل التي قد تحتوي على معلومات شخصية مثل رسائل البريد الإلكتروني أو أرقام الهواتف.",
-    piiModalTitle: "تحذير بشأن معلومات حساسة",
-    piiModalContent: "قد تحتوي رسالتك على معلومات شخصية حساسة. هل أنت متأكد من أنك تريد إرسالها؟",
-    piiSendAnyway: "إرسال على أي حال",
-    // New Responsible AI Policy
-    responsibleAiPolicy: "سياسة الذكاء الاصطناعي المسؤول",
-    responsibleAiPolicyTitle: "سياسة الذكاء الاصطناعي المسؤول",
-    responsibleAiPolicyContent: `(المحتوى باللغة الإنجليزية)
-**Our Commitment to Responsible AI**
-Betalive AI is designed to be a helpful and harmless assistant. We are committed to developing and deploying artificial intelligence responsibly, guided by principles of fairness, accountability, and transparency.
-
-**1. Intended Use**
-This AI is intended for general information, creative tasks, and personal assistance. It should not be used for:
-- Activities that are illegal, unethical, or harmful.
-- Generating hate speech, harassment, or discriminatory content.
-- Spreading misinformation or disinformation.
-- Decisions in high-stakes domains (e.g., medical diagnosis, legal advice, financial planning) without professional human consultation.
-
-**2. Safety and Harm Prevention**
-We employ safety filters and content moderation to prevent the generation of unsafe or harmful content. Users are encouraged to report any inappropriate responses. We do not tolerate the use of our service for creating explicit, violent, or abusive material.
-
-**3. Fairness and Bias**
-AI models learn from vast amounts of data and may reflect existing societal biases. We are actively working to reduce bias and promote fairness. Users should be aware that AI-generated content can sometimes be inaccurate or biased and should use critical judgment.
-
-**4. Transparency**
-We believe you should know when you are interacting with an AI. This application clearly identifies itself as an AI assistant powered by Google's Gemini models. Your conversations may be used (with privacy-preserving techniques) to improve our services if you opt-in via the 'Improve AI Models' setting.
-
-**5. Accountability**
-You are responsible for how you use the AI. Do not use it for harmful purposes. We are accountable for the system's behavior and are committed to addressing any issues that arise. If you have concerns, please contact us at support@betalive.dev.
-`,
-  },
-  en: {
-    chatTitle: "Betalive AI",
-    chatSubtitle: "Your Smart Personal Assistant",
-    settingsTitle: "Settings",
-    ageVerificationTitle: "Age Verification",
-    initialMessage: "Hello! I am your personal assistant, Betalive AI. How can I help you today?",
-    appleIntelligenceInitialMessage: "Hello! I am Apple Intelligence, your personal assistant from Betalive AI. How may I help you?",
-    inputPlaceholder: "Type your message or paste a video link...",
-    errorApi: "Failed to initialize the AI assistant. Please ensure API key is configured.",
-    errorGeneral: "Sorry, something went wrong. Please try again.",
-    send: "Send",
-    agePrompt: "Please enter your date of birth to continue. You must be 13 years old or older.",
-    ageErrorDate: "Please enter your full date of birth.",
-    ageError18: "You must be 13 years old or older to use this service.",
-    year: "Year",
-    month: "Month",
-    day: "Day",
-    verify: "Verify",
-    done: "Done",
-    generating: "Generating...",
-    cancel: "Cancel",
-    newChat: "New Chat",
-    imageGenerating: "Generating an image of:",
-    imageDone: "Here is the image you requested.",
-    imagineHint: "Use /imagine <prompt> to generate an image.",
-    playgroundError: "Failed to generate image. Please try again.",
-    chatHistory: "Chat History",
-    deleteChat: "Delete Chat",
-    confirmDelete: "Are you sure you want to delete this chat?",
-    delete: "Delete",
-    general: "General",
-    language: "Language",
-    aiModelsTitle: "AI Models",
-    aiModelsInfo: "This app operates as a client for the Google Gemini API. For security and technical reasons, it cannot run other models like Meta Llama directly. The toggles here adapt the AI's personality to simulate different models, but all responses are generated by Google Gemini.",
-    openai: "OpenAI ChatGPT",
-    meta: "Meta AI",
-    amazon: "Amazon AI",
-    microsoft: "Microsoft Copilot",
-    appleIntelligenceTitle: "Apple Intelligence",
-    appleIntelligenceDesc: "Enable enhanced AI features like image generation and Visual Lookup.",
-    enableAppleIntelligence: "Enable Enhanced Features",
-    voiceSettings: "Voice & Speech",
-    enableVoiceCommands: "Enable Voice Commands",
-    textToSpeech: "Read Responses Aloud",
-    ttsVoice: "AI Voice",
-    privacyAndSecurity: "Privacy & Security",
-    allowMicrophone: "Allow Microphone Access",
-    allowCamera: "Allow Camera Access",
-    permissionDeniedMic: "Microphone access is disabled in settings.",
-    permissionDeniedCam: "Camera access is disabled in settings.",
-    saveConversations: "Save Conversations",
-    logActivity: "Log Activity",
-    improveAI: "Improve AI Models",
-    searchingGoogle: "Searching with Google...",
-    sources: "Sources:",
-    webSearch: "Web Search",
-    version: "Version",
-    localCodeSectionTitle: "Custom Instructions",
-    localCodeSectionDesc: "Provide custom instructions to define how the AI should respond. You can set a specific personality, tone, or rules for it to follow. Changes will apply to new conversations.",
-    enableCustomInstructions: "Enable Custom Instructions",
-    systemPromptPlaceholder: "e.g., You are a helpful assistant that speaks like a pirate.",
-    appleIntelligenceWelcome: "Apple Intelligence",
-    getDirections: "Get directions home",
-    playPlaylist: "Play my road trip playlist",
-    shareETA: "Share my ETA with a friend",
-    carModeTitle: "Car Mode",
-    enableCarMode: "Enable Car Mode",
-    carModeWelcome: "Car Mode",
-    carGetDirections: "Get directions to work",
-    carPlayMusic: "Play my driving playlist",
-    carCallContact: "Call Sarah",
-    carPlaySong: "Play a song",
-    carSearchMusic: "Search Music",
-    proofread: "Proofread",
-    rewrite: "Rewrite",
-    summarize: "Summarize",
-    attachImages: "Attach images",
-    removeImage: "Remove image",
-    visualLookupTitle: "Visual Lookup",
-    visualLookupDesc: "Identify objects in an image or from your camera.",
-    useCamera: "Use Camera",
-    uploadImage: "Upload Image",
-    capture: "Capture",
-    identifying: "Identifying...",
-    identify: "Identify",
-    retake: "Retake",
-    back: "Back",
-    photoMetadataPrivacyTitle: "Photo Metadata Privacy",
-    photoMetadataPrivacyDesc: "Strips identifying data from uploaded photos for enhanced privacy.",
-    objectRecognition: "Object Recognition",
-    close: "Close",
-    enableCallIntegration: "Enable Calling & Messaging",
-    enableCallIntegrationDesc: "Allows the AI to generate links for making calls or sending messages using your device's apps.",
-    carModeInstructionsTitle: "Car Connection Guide",
-    carModeInstruction1: "1. Connect your phone to your car's audio system using Bluetooth.",
-    carModeInstruction2: "2. Make sure your phone's media audio is playing through your car speakers.",
-    carModeInstruction3: "3. Interact with the AI using your voice for a true hands-free experience, or tap the quick-action buttons on the screen.",
-    carModeInstruction4: "4. For your safety, only use the keyboard to type messages when your vehicle is fully stopped and parked.",
-    carKeyboardWarning: "For safety, do not use the keyboard while driving.",
-    hideIpAddressTitle: "Hide IP Address",
-    hideIpAddressDesc: "Attempts to mask your IP address. For full protection, use a dedicated VPN service.",
-    locationAccessTitle: "Location Access",
-    locationAccessDenied: "Deny",
-    locationAccessApproximate: "Approximate",
-    locationAccessGranted: "Allow",
-    securityReportTitle: "Security Report",
-    viewSecurityReport: "View Security Report",
-    yourSecurityScore: "Your Security Score",
-    securityStatus: "Security Status",
-    securityRecTitle: "Recommendations",
-    recSaveConvo: "Disable 'Save Conversations' for maximum privacy.",
-    recMic: "Turn off microphone access when not in use.",
-    recCam: "Turn off camera access when not in use.",
-    recPhoto: "Turn on 'Photo Metadata Privacy' to strip data from images.",
-    recIp: "Turn on 'Hide IP Address' for an extra layer of privacy.",
-    recLocation: "Set 'Location Access' to 'Deny' or 'Approximate'.",
-    allGood: "All good! Your security settings are excellent.",
-    speechRecognitionTitle: "Speech Recognition",
-    speechRecognitionDesc: "Allows the app to recognize your voice for commands. Compatibility may vary by browser and device (e.g., Android vs. iOS).",
-    nowPlaying: "Now Playing",
-    unknownSong: "Unknown Song",
-    unknownArtist: "Unknown Artist",
-    stopMusic: "Stop Music",
-    openInYouTube: "Open in YouTube",
-    openInSpotify: "Open in Spotify",
-    couldNotPlaySuffix: "\n\nI couldn't find a video to play automatically, but you can try the links below.",
-    iraqiCultureTitle: "Iraqi Culture & History",
-    exploreMuseum: "Explore the Iraqi Museum",
-    historyOfBaghdad: "History of Baghdad",
-    whoIsHammurabi: "Who was Hammurabi?",
-    iraqiCuisine: "Famous Iraqi Cuisine",
-    codingInIraq: "Importance of coding in Iraq",
-    devJobsForGrads: "Software jobs for graduates",
-    iraqiTalentTitle: "Iraqi Coder Initiative",
-    iraqiTalentDesc: "Explore how software development is creating new job opportunities for graduates in Iraq and shaping the future of its tech industry.",
-    enableCareerGuidance: "Enable Career Guidance",
-    videoAnalysis: "Video Analysis",
-    videoUrlPlaceholder: "YouTube or Facebook video link detected.",
-    keyMoments: "Key Moments",
-    analyzeContent: "Analyze Content",
-    clear: "Clear",
-    summarizingVideo: "Summarizing video...",
-    findingKeyMoments: "Finding key moments...",
-    analyzingVideo: "Analyzing video...",
-    threatScanTitle: "Security Threat Scan",
-    threatScanDesc: "Analyze your conversations and app settings for potential security threats. For analysis, your data is sent to the AI over a secure, encrypted connection. While not end-to-end encrypted (the AI needs to read it), your data is protected in transit.",
-    startScan: "Start Scan",
-    scanning: "Scanning...",
-    scanComplete: "Scan Complete",
-    noThreatsFound: "No security threats found. Your data looks clean.",
-    threatsFound: "{count} potential threats found.",
-    piiSectionTitle: "Sensitive Data Exposure",
-    piiDescription: "The following messages may contain personally identifiable information. Consider deleting them for better privacy.",
-    linkSectionTitle: "Suspicious Links",
-    linkDescription: "The following links were flagged as potentially suspicious. Avoid opening them.",
-    scanForThreats: "Scan for Threats",
-    inMessage: "In message:",
-    flaggedUrl: "Flagged URL:",
-    reason: "Reason:",
-    errorThreatScan: "Could not complete the security scan. Please try again later.",
-    appScanSectionTitle: "App Security Analysis",
-    appScanDescription: "The following settings configurations may pose a security risk.",
-    setting: "Setting",
-    issue: "Potential Issue",
-    recommendation: "Recommendation",
-    applyRecommendations: "Apply Recommendations",
-    recommendationsApplied: "Recommendations Applied!",
-    privacyPolicy: "Privacy Policy",
-    privacyPolicyTitle: "Privacy Policy",
-    privacyPolicyContent: `
-Last updated: July 25, 2024
-
-Betalive AI ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.
-
-**1. Information We Collect**
-- **Account Information:** When you register, we collect your email address and a password hash.
-- **Conversation Data:** We collect the messages you send and receive to provide the chat functionality. If you enable "Save Conversations," this data is stored in your browser's local storage.
-- **Settings:** We store your application preferences and settings in local storage.
-- **Usage Data:** If "Log Activity" is enabled, we may collect anonymous data about your interactions with the app to improve our services. This does not include conversation content.
-
-**2. How We Use Your Information**
-- To provide and maintain the application's features.
-- To process your requests and send them to the Google Gemini API.
-- To personalize your experience based on your settings.
-- To improve the application with anonymous usage data.
-
-**3. Data Sharing and Disclosure**
-- **Google Gemini API:** Your conversation prompts are sent to Google's servers to generate responses. We do not control how Google uses this data. Please refer to Google's Privacy Policy.
-- **No Other Third Parties:** We do not sell, trade, or otherwise transfer your personally identifiable information to outside parties.
-
-**4. Data Storage and Security**
-- Your account data, conversations (if saved), and settings are stored in your browser's local storage on your device.
-- We implement security measures to protect your data, but no method of transmission over the Internet or method of electronic storage is 100% secure.
-
-**5. Your Choices**
-- You can manage your privacy settings within the app's Settings panel.
-- You can choose not to save conversations, which will delete them when you close the session.
-- You can delete your account and all associated data.
-
-**6. Contact Us**
-If you have any questions about this Privacy Policy, please contact us at privacy@betalive.dev.
-`,
-    conversationRetentionPolicyTitle: "Conversation Retention Policy",
-    retentionForever: "Keep Forever",
-    retentionOnClose: "Delete on Close",
-    retentionPolicyDesc: "If 'Save Conversations' is on, 'Delete on Close' offers ephemeral storage.",
-    textToSpeechWarning: "For your privacy, be aware of your surroundings when enabling this feature as responses are read aloud.",
-    logActivityDesc: "Helps improve the app by logging anonymous user interactions. Conversation content is never logged.",
-    // Auth & Security
-    loginTitle: "Login",
-    registerTitle: "Create Account",
-    email: "Email",
-    password: "Password",
-    confirmPassword: "Confirm Password",
-    login: "Login",
-    register: "Register",
-    switchToRegister: "Don't have an account? Sign up",
-    switchToLogin: "Already have an account? Log in",
-    logout: "Logout",
-    errorUserExists: "This email is already registered.",
-    errorUserNotFound: "Incorrect email or password.",
-    errorPasswordMatch: "Passwords do not match.",
-    errorInvalidEmail: "Invalid email address.",
-    errorPasswordWeak: "Password is too weak.",
-    passwordStrength: "Password Strength",
-    strengthWeak: "Weak",
-    strengthMedium: "Medium",
-    strengthStrong: "Strong",
-    accountAndSecurity: "Account & Security",
-    changePassword: "Change Password",
-    twoFactorAuth: "Two-Factor Authentication",
-    activeSessions: "Active Sessions",
-    accountActions: "Account Actions",
-    exportData: "Export My Data",
-    deleteAccount: "Delete Account",
-    developerMode: "Developer Mode",
-    advanced: "Advanced",
-    enable2FA: "Enable Two-Factor Authentication",
-    disable2FA: "Disable Two-Factor Authentication",
-    "2faDescription": "Add an extra layer of security to your account. Scan this QR code with your authenticator app.",
-    verificationCode: "Verification Code",
-    verifyCode: "Verify",
-    "2faEnabledSuccess": "Two-Factor Authentication enabled successfully.",
-    "2faDisabledSuccess": "Two-Factor Authentication disabled successfully.",
-    currentDevice: "Current Device",
-    lastActive: "Last Active",
-    confirmDeleteAccount: "Are you sure? This action cannot be undone. Enter your email to confirm.",
-    privacyCheckup: "Privacy Checkup",
-    privacyCheckupDesc: "Quickly review your key privacy settings.",
-    // New Developer Mode
-    developerOptions: "Developer Options",
-    apiCallInspector: "API Call Inspector",
-    viewApiLogs: "View API Logs",
-    enableApiLogging: "Enable API Call Logging",
-    apiLoggingDesc: "Logs raw API requests and responses for debugging purposes.",
-    privacySandbox: "Privacy Sandbox",
-    enablePrivacySandbox: "Enable Privacy Sandbox",
-    privacySandboxDesc: "Activate experimental privacy-testing features like PII redaction.",
-    forceEphemeral: "Force Ephemeral Sessions",
-    forceEphemeralDesc: "Overrides user settings and deletes all conversations on logout.",
-    request: "Request",
-    response: "Response",
-    noApiLogs: "No API calls have been logged yet.",
-    redactedMessageTooltip: "This message was redacted by the Privacy Sandbox.",
-    // New PIN Protection
-    pinModalTitle: "Developer Access",
-    pinModalPrompt: "Enter PIN to enable Developer Mode.",
-    pinModalError: "Incorrect PIN. Please try again.",
-    verifyPin: "Verify",
-    // New Experimental Features
-    sensitiveTopicWarningTooltip: "This message may contain sensitive topics.",
-    configure: "Configure",
-    redactionLevel: "Redaction Level",
-    standardRedaction: "Standard Redaction",
-    standardRedactionDesc: "Redacts common PII like emails and phone numbers.",
-    aggressiveRedaction: "Aggressive Redaction",
-    aggressiveRedactionDesc: "Also attempts to redact potential names and physical addresses.",
-    sensitiveTopicWarning: "Sensitive Topic Warning",
-    sensitiveTopicWarningDesc: "Flags user messages that may contain sensitive topics without redacting them.",
-    systemPromptOverride: "System Prompt Override",
-    systemPromptOverrideDesc: "Temporarily override the default and custom system prompts for this session only. Clear the text to reset.",
-    systemPromptOverridePlaceholder: "e.g., You are a sarcastic assistant who always responds with witty comebacks.",
-    simulateLatency: "Simulate Network Latency",
-    simulateLatencyDesc: "Adds an artificial delay to AI responses to test loading states.",
-    devOverrideActive: "Override Active",
-    // Quick Actions
-    quickActions: "Quick Actions",
-    writingTools: "Writing Tools",
-    improveWriting: "Improve Writing",
-    summarizeText: "Summarize Text",
-    changeTone: "Change Tone",
-    translate: "Translate",
-    ideaGeneration: "Idea Generation",
-    brainstormIdeas: "Brainstorm Ideas",
-    writePoem: "Write a Poem",
-    createStory: "Create a Story",
-    tone_professional: "Professional",
-    tone_casual: "Casual",
-    tone_friendly: "Friendly",
-    selectLanguage: "Select a language",
-    generatingAction: "AI is working...",
-    errorQuickAction: "Sorry, I couldn't complete that action. Please try again.",
-    actionRequiresText: "This action requires you to write some text first.",
-    codeTools: "Code Tools",
-    explainCode: "Explain Code",
-    debugCode: "Debug Code",
-    optimizeCode: "Optimize Code",
-    // New Modular Architecture
-    thirdPartyIntegrationsTitle: "Configure Integrations",
-    thirdPartyIntegrationsDesc: "Enable and configure third-party AI models.",
-    enableThirdPartyIntegrations: "Enable Integration Framework",
-    openaiApiKey: "OpenAI API Key",
-    activeModel: "Active Model",
-    modelGemini: "Google Gemini (Default)",
-    modelOpenAI: "OpenAI GPT-4 (Simulated)",
-    integrationCodeTitle: "Embeddable Widget",
-    integrationCodeDesc: "Copy one of the snippets below to embed the Betalive AI chat widget directly on your site. The widget is fully functional and connects to your account settings.",
-    yourApiKey: "Your Website API Key",
-    generateNewKey: "Generate New Key",
-    copyCode: "Copy Code",
-    copied: "Copied!",
-    embeddableWidget: "Embeddable Widget",
-    fullSnippetTitle: "Recommended: Iframe with Container",
-    fullSnippetDesc: "A styled container for clean presentation.",
-    htmlOnlySnippetTitle: "HTML Only",
-    htmlOnlySnippetDesc: "Just the iframe tag with no styling.",
-    // New PII Warning
-    piiSendWarningTitle: "Warn Before Sending Sensitive Info",
-    piiSendWarningDesc: "Show a confirmation alert before sending messages that may contain personal information like emails or phone numbers.",
-    piiModalTitle: "Sensitive Information Warning",
-    piiModalContent: "Your message may contain sensitive personal information. Are you sure you want to send it?",
-    piiSendAnyway: "Send Anyway",
-    // New Responsible AI Policy
-    responsibleAiPolicy: "Responsible AI Policy",
-    responsibleAiPolicyTitle: "Responsible AI Policy",
-    responsibleAiPolicyContent: `
-**Our Commitment to Responsible AI**
-Betalive AI is designed to be a helpful and harmless assistant. We are committed to developing and deploying artificial intelligence responsibly, guided by principles of fairness, accountability, and transparency.
-
-**1. Intended Use**
-This AI is intended for general information, creative tasks, and personal assistance. It should not be used for:
-- Activities that are illegal, unethical, or harmful.
-- Generating hate speech, harassment, or discriminatory content.
-- Spreading misinformation or disinformation.
-- Decisions in high-stakes domains (e.g., medical diagnosis, legal advice, financial planning) without professional human consultation.
-
-**2. Safety and Harm Prevention**
-We employ safety filters and content moderation to prevent the generation of unsafe or harmful content. Users are encouraged to report any inappropriate responses. We do not tolerate the use of our service for creating explicit, violent, or abusive material.
-
-**3. Fairness and Bias**
-AI models learn from vast amounts of data and may reflect existing societal biases. We are actively working to reduce bias and promote fairness. Users should be aware that AI-generated content can sometimes be inaccurate or biased and should use critical judgment.
-
-**4. Transparency**
-We believe you should know when you are interacting with an AI. This application clearly identifies itself as an AI assistant powered by Google's Gemini models. Your conversations may be used (with privacy-preserving techniques) to improve our services if you opt-in via the 'Improve AI Models' setting.
-
-**5. Accountability**
-You are responsible for how you use the AI. Do not use it for harmful purposes. We are accountable for the system's behavior and are committed to addressing any issues that arise. If you have any concerns, please contact us at support@betalive.dev.
-`,
-  },
-  aii: { // Aramaic - assuming this is a placeholder or requires specific handling
-    // Copying English as a fallback for now.
-    ...({
-    chatTitle: "Betalive AI",
-    chatSubtitle: "Your Smart Personal Assistant",
-    settingsTitle: "Settings",
-    ageVerificationTitle: "Age Verification",
-    initialMessage: "Hello! I am your personal assistant, Betalive AI. How can I help you today?",
-    appleIntelligenceInitialMessage: "Hello! I am Apple Intelligence, your personal assistant from Betalive AI. How may I help you?",
-    inputPlaceholder: "Type your message or paste a video link...",
-    errorApi: "Failed to initialize the AI assistant. Please ensure API key is configured.",
-    errorGeneral: "Sorry, something went wrong. Please try again.",
-    send: "Send",
-    agePrompt: "Please enter your date of birth to continue. You must be 13 years old or older.",
-    ageErrorDate: "Please enter your full date of birth.",
-    ageError18: "You must be 13 years old or older to use this service.",
-    year: "Year",
-    month: "Month",
-    day: "Day",
-    verify: "Verify",
-    done: "Done",
-    generating: "Generating...",
-    cancel: "Cancel",
-    newChat: "New Chat",
-    imageGenerating: "Generating an image of:",
-    imageDone: "Here is the image you requested.",
-    imagineHint: "Use /imagine <prompt> to generate an image.",
-    playgroundError: "Failed to generate image. Please try again.",
-    chatHistory: "Chat History",
-    deleteChat: "Delete Chat",
-    confirmDelete: "Are you sure you want to delete this chat?",
-    delete: "Delete",
-    general: "General",
-    language: "Language",
-    aiModelsTitle: "AI Models",
-    aiModelsInfo: "This app operates as a client for the Google Gemini API. For security and technical reasons, it cannot run other models like Meta Llama directly. The toggles here adapt the AI's personality to simulate different models, but all responses are generated by Google Gemini.",
-    openai: "OpenAI ChatGPT",
-    meta: "Meta AI",
-    amazon: "Amazon AI",
-    microsoft: "Microsoft Copilot",
-    appleIntelligenceTitle: "Apple Intelligence",
-    appleIntelligenceDesc: "Enable enhanced AI features like image generation and Visual Lookup.",
-    enableAppleIntelligence: "Enable Enhanced Features",
-    voiceSettings: "Voice & Speech",
-    enableVoiceCommands: "Enable Voice Commands",
-    textToSpeech: "Read Responses Aloud",
-    ttsVoice: "AI Voice",
-    privacyAndSecurity: "Privacy & Security",
-    allowMicrophone: "Allow Microphone Access",
-    allowCamera: "Allow Camera Access",
-    permissionDeniedMic: "Microphone access is disabled in settings.",
-    permissionDeniedCam: "Camera access is disabled in settings.",
-    saveConversations: "Save Conversations",
-    logActivity: "Log Activity",
-    improveAI: "Improve AI Models",
-    searchingGoogle: "Searching with Google...",
-    sources: "Sources:",
-    webSearch: "Web Search",
-    version: "Version",
-    localCodeSectionTitle: "Custom Instructions",
-    localCodeSectionDesc: "Provide custom instructions to define how the AI should respond. You can set a specific personality, tone, or rules for it to follow. Changes will apply to new conversations.",
-    enableCustomInstructions: "Enable Custom Instructions",
-    systemPromptPlaceholder: "e.g., You are a helpful assistant that speaks like a pirate.",
-    appleIntelligenceWelcome: "Apple Intelligence",
-    getDirections: "Get directions home",
-    playPlaylist: "Play my road trip playlist",
-    shareETA: "Share my ETA with a friend",
-    carModeTitle: "Car Mode",
-    enableCarMode: "Enable Car Mode",
-    carModeWelcome: "Car Mode",
-    carGetDirections: "Get directions to work",
-    carPlayMusic: "Play my driving playlist",
-    carCallContact: "Call Sarah",
-    carPlaySong: "Play a song",
-    carSearchMusic: "Search Music",
-    proofread: "Proofread",
-    rewrite: "Rewrite",
-    summarize: "Summarize",
-    attachImages: "Attach images",
-    removeImage: "Remove image",
-    visualLookupTitle: "Visual Lookup",
-    visualLookupDesc: "Identify objects in an image or from your camera.",
-    useCamera: "Use Camera",
-    uploadImage: "Upload Image",
-    capture: "Capture",
-    identifying: "Identifying...",
-    identify: "Identify",
-    retake: "Retake",
-    back: "Back",
-    photoMetadataPrivacyTitle: "Photo Metadata Privacy",
-    photoMetadataPrivacyDesc: "Strips identifying data from uploaded photos for enhanced privacy.",
-    objectRecognition: "Object Recognition",
-    close: "Close",
-    enableCallIntegration: "Enable Calling & Messaging",
-    enableCallIntegrationDesc: "Allows the AI to generate links for making calls or sending messages using your device's apps.",
-    carModeInstructionsTitle: "Car Connection Guide",
-    carModeInstruction1: "1. Connect your phone to your car's audio system using Bluetooth.",
-    carModeInstruction2: "2. Make sure your phone's media audio is playing through your car speakers.",
-    carModeInstruction3: "3. Interact with the AI using your voice for a true hands-free experience, or tap the quick-action buttons on the screen.",
-    carModeInstruction4: "4. For your safety, only use the keyboard to type messages when your vehicle is fully stopped and parked.",
-    carKeyboardWarning: "For safety, do not use the keyboard while driving.",
-    hideIpAddressTitle: "Hide IP Address",
-    hideIpAddressDesc: "Attempts to mask your IP address. For full protection, use a dedicated VPN service.",
-    locationAccessTitle: "Location Access",
-    locationAccessDenied: "Deny",
-    locationAccessApproximate: "Approximate",
-    locationAccessGranted: "Allow",
-    securityReportTitle: "Security Report",
-    viewSecurityReport: "View Security Report",
-    yourSecurityScore: "Your Security Score",
-    securityStatus: "Security Status",
-    securityRecTitle: "Recommendations",
-    recSaveConvo: "Disable 'Save Conversations' for maximum privacy.",
-    recMic: "Turn off microphone access when not in use.",
-    recCam: "Turn off camera access when not in use.",
-    recPhoto: "Turn on 'Photo Metadata Privacy' to strip data from images.",
-    recIp: "Turn on 'Hide IP Address' for an extra layer of privacy.",
-    recLocation: "Set 'Location Access' to 'Deny' or 'Approximate'.",
-    allGood: "All good! Your security settings are excellent.",
-    speechRecognitionTitle: "Speech Recognition",
-    speechRecognitionDesc: "Allows the app to recognize your voice for commands. Compatibility may vary by browser and device (e.g., Android vs. iOS).",
-    nowPlaying: "Now Playing",
-    unknownSong: "Unknown Song",
-    unknownArtist: "Unknown Artist",
-    stopMusic: "Stop Music",
-    openInYouTube: "Open in YouTube",
-    openInSpotify: "Open in Spotify",
-    couldNotPlaySuffix: "\n\nI couldn't find a video to play automatically, but you can try the links below.",
-    iraqiCultureTitle: "Iraqi Culture & History",
-    exploreMuseum: "Explore the Iraqi Museum",
-    historyOfBaghdad: "History of Baghdad",
-    whoIsHammurabi: "Who was Hammurabi?",
-    iraqiCuisine: "Famous Iraqi Cuisine",
-    codingInIraq: "Importance of coding in Iraq",
-    devJobsForGrads: "Software jobs for graduates",
-    iraqiTalentTitle: "Iraqi Coder Initiative",
-    iraqiTalentDesc: "Explore how software development is creating new job opportunities for graduates in Iraq and shaping the future of its tech industry.",
-    enableCareerGuidance: "Enable Career Guidance",
-    videoAnalysis: "Video Analysis",
-    videoUrlPlaceholder: "YouTube or Facebook video link detected.",
-    keyMoments: "Key Moments",
-    analyzeContent: "Analyze Content",
-    clear: "Clear",
-    summarizingVideo: "Summarizing video...",
-    findingKeyMoments: "Finding key moments...",
-    analyzingVideo: "Analyzing video...",
-    threatScanTitle: "Security Threat Scan",
-    threatScanDesc: "Analyze your conversations and app settings for potential security threats. For analysis, your data is sent to the AI over a secure, encrypted connection. While not end-to-end encrypted (the AI needs to read it), your data is protected in transit.",
-    startScan: "Start Scan",
-    scanning: "Scanning...",
-    scanComplete: "Scan Complete",
-    noThreatsFound: "No security threats found. Your data looks clean.",
-    threatsFound: "{count} potential threats found.",
-    piiSectionTitle: "Sensitive Data Exposure",
-    piiDescription: "The following messages may contain personally identifiable information. Consider deleting them for better privacy.",
-    linkSectionTitle: "Suspicious Links",
-    linkDescription: "The following links were flagged as potentially suspicious. Avoid opening them.",
-    scanForThreats: "Scan for Threats",
-    inMessage: "In message:",
-    flaggedUrl: "Flagged URL:",
-    reason: "Reason:",
-    errorThreatScan: "Could not complete the security scan. Please try again later.",
-    appScanSectionTitle: "App Security Analysis",
-    appScanDescription: "The following settings configurations may pose a security risk.",
-    setting: "Setting",
-    issue: "Potential Issue",
-    recommendation: "Recommendation",
-    applyRecommendations: "Apply Recommendations",
-    recommendationsApplied: "Recommendations Applied!",
-    privacyPolicy: "Privacy Policy",
-    privacyPolicyTitle: "Privacy Policy",
-    privacyPolicyContent: `
-Last updated: July 25, 2024
-
-Betalive AI ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.
-
-**1. Information We Collect**
-- **Account Information:** When you register, we collect your email address and a password hash.
-- **Conversation Data:** We collect the messages you send and receive to provide the chat functionality. If you enable "Save Conversations," this data is stored in your browser's local storage.
-- **Settings:** We store your application preferences and settings in local storage.
-- **Usage Data:** If "Log Activity" is enabled, we may collect anonymous data about your interactions with the app to improve our services. This does not include conversation content.
-
-**2. How We Use Your Information**
-- To provide and maintain the application's features.
-- To process your requests and send them to the Google Gemini API.
-- To personalize your experience based on your settings.
-- To improve the application with anonymous usage data.
-
-**3. Data Sharing and Disclosure**
-- **Google Gemini API:** Your conversation prompts are sent to Google's servers to generate responses. We do not control how Google uses this data. Please refer to Google's Privacy Policy.
-- **No Other Third Parties:** We do not sell, trade, or otherwise transfer your personally identifiable information to outside parties.
-
-**4. Data Storage and Security**
-- Your account data, conversations (if saved), and settings are stored in your browser's local storage on your device.
-- We implement security measures to protect your data, but no method of transmission over the Internet or method of electronic storage is 100% secure.
-
-**5. Your Choices**
-- You can manage your privacy settings within the app's Settings panel.
-- You can choose not to save conversations, which will delete them when you close the session.
-- You can delete your account and all associated data.
-
-**6. Contact Us**
-If you have any questions about this Privacy Policy, please contact us at privacy@betalive.dev.
-`,
-    conversationRetentionPolicyTitle: "Conversation Retention Policy",
-    retentionForever: "Keep Forever",
-    retentionOnClose: "Delete on Close",
-    retentionPolicyDesc: "If 'Save Conversations' is on, 'Delete on Close' offers ephemeral storage.",
-    textToSpeechWarning: "For your privacy, be aware of your surroundings when enabling this feature as responses are read aloud.",
-    logActivityDesc: "Helps improve the app by logging anonymous user interactions. Conversation content is never logged.",
-    // Auth & Security
-    loginTitle: "Login",
-    registerTitle: "Create Account",
-    email: "Email",
-    password: "Password",
-    confirmPassword: "Confirm Password",
-    login: "Login",
-    register: "Register",
-    switchToRegister: "Don't have an account? Sign up",
-    switchToLogin: "Already have an account? Log in",
-    logout: "Logout",
-    errorUserExists: "This email is already registered.",
-    errorUserNotFound: "Incorrect email or password.",
-    errorPasswordMatch: "Passwords do not match.",
-    errorInvalidEmail: "Invalid email address.",
-    errorPasswordWeak: "Password is too weak.",
-    passwordStrength: "Password Strength",
-    strengthWeak: "Weak",
-    strengthMedium: "Medium",
-    strengthStrong: "Strong",
-    accountAndSecurity: "Account & Security",
-    changePassword: "Change Password",
-    twoFactorAuth: "Two-Factor Authentication",
-    activeSessions: "Active Sessions",
-    accountActions: "Account Actions",
-    exportData: "Export My Data",
-    deleteAccount: "Delete Account",
-    developerMode: "Developer Mode",
-    advanced: "Advanced",
-    enable2FA: "Enable Two-Factor Authentication",
-    disable2FA: "Disable Two-Factor Authentication",
-    "2faDescription": "Add an extra layer of security to your account. Scan this QR code with your authenticator app.",
-    verificationCode: "Verification Code",
-    verifyCode: "Verify",
-    "2faEnabledSuccess": "Two-Factor Authentication enabled successfully.",
-    "2faDisabledSuccess": "Two-Factor Authentication disabled successfully.",
-    currentDevice: "Current Device",
-    lastActive: "Last Active",
-    confirmDeleteAccount: "Are you sure? This action cannot be undone. Enter your email to confirm.",
-    privacyCheckup: "Privacy Checkup",
-    privacyCheckupDesc: "Quickly review your key privacy settings.",
-    // New Developer Mode
-    developerOptions: "Developer Options",
-    apiCallInspector: "API Call Inspector",
-    viewApiLogs: "View API Logs",
-    enableApiLogging: "Enable API Call Logging",
-    apiLoggingDesc: "Logs raw API requests and responses for debugging purposes.",
-    privacySandbox: "Privacy Sandbox",
-    enablePrivacySandbox: "Enable Privacy Sandbox",
-    privacySandboxDesc: "Activate experimental privacy-testing features like PII redaction.",
-    forceEphemeral: "Force Ephemeral Sessions",
-    forceEphemeralDesc: "Overrides user settings and deletes all conversations on logout.",
-    request: "Request",
-    response: "Response",
-    noApiLogs: "No API calls have been logged yet.",
-    redactedMessageTooltip: "This message was redacted by the Privacy Sandbox.",
-    // New PIN Protection
-    pinModalTitle: "Developer Access",
-    pinModalPrompt: "Enter PIN to enable Developer Mode.",
-    pinModalError: "Incorrect PIN. Please try again.",
-    verifyPin: "Verify",
-    // New Experimental Features
-    sensitiveTopicWarningTooltip: "This message may contain sensitive topics.",
-    configure: "Configure",
-    redactionLevel: "Redaction Level",
-    standardRedaction: "Standard Redaction",
-    standardRedactionDesc: "Redacts common PII like emails and phone numbers.",
-    aggressiveRedaction: "Aggressive Redaction",
-    aggressiveRedactionDesc: "Also attempts to redact potential names and physical addresses.",
-    sensitiveTopicWarning: "Sensitive Topic Warning",
-    sensitiveTopicWarningDesc: "Flags user messages that may contain sensitive topics without redacting them.",
-    systemPromptOverride: "System Prompt Override",
-    systemPromptOverrideDesc: "Temporarily override the default and custom system prompts for this session only. Clear the text to reset.",
-    systemPromptOverridePlaceholder: "e.g., You are a sarcastic assistant who always responds with witty comebacks.",
-    simulateLatency: "Simulate Network Latency",
-    simulateLatencyDesc: "Adds an artificial delay to AI responses to test loading states.",
-    devOverrideActive: "Override Active",
-    // Quick Actions
-    quickActions: "Quick Actions",
-    writingTools: "Writing Tools",
-    improveWriting: "Improve Writing",
-    summarizeText: "Summarize Text",
-    changeTone: "Change Tone",
-    translate: "Translate",
-    ideaGeneration: "Idea Generation",
-    brainstormIdeas: "Brainstorm Ideas",
-    writePoem: "Write a Poem",
-    createStory: "Create a Story",
-    tone_professional: "Professional",
-    tone_casual: "Casual",
-    tone_friendly: "Friendly",
-    selectLanguage: "Select a language",
-    generatingAction: "AI is working...",
-    errorQuickAction: "Sorry, I couldn't complete that action. Please try again.",
-    actionRequiresText: "This action requires you to write some text first.",
-    codeTools: "Code Tools",
-    explainCode: "Explain Code",
-    debugCode: "Debug Code",
-    optimizeCode: "Optimize Code",
-    // New Modular Architecture
-    thirdPartyIntegrationsTitle: "Configure Integrations",
-    thirdPartyIntegrationsDesc: "Enable and configure third-party AI models.",
-    enableThirdPartyIntegrations: "Enable Integration Framework",
-    openaiApiKey: "OpenAI API Key",
-    activeModel: "Active Model",
-    modelGemini: "Google Gemini (Default)",
-    modelOpenAI: "OpenAI GPT-4 (Simulated)",
-    integrationCodeTitle: "Embeddable Widget",
-    integrationCodeDesc: "Copy one of the snippets below to embed the Betalive AI chat widget directly on your site. The widget is fully functional and connects to your account settings.",
-    yourApiKey: "Your Website API Key",
-    generateNewKey: "Generate New Key",
-    copyCode: "Copy Code",
-    copied: "Copied!",
-    embeddableWidget: "Embeddable Widget",
-    fullSnippetTitle: "Recommended: Iframe with Container",
-    fullSnippetDesc: "A styled container for clean presentation.",
-    htmlOnlySnippetTitle: "HTML Only",
-    htmlOnlySnippetDesc: "Just the iframe tag with no styling.",
-    // New PII Warning
-    piiSendWarningTitle: "Warn Before Sending Sensitive Info",
-    piiSendWarningDesc: "Show a confirmation alert before sending messages that may contain personal information like emails or phone numbers.",
-    piiModalTitle: "Sensitive Information Warning",
-    piiModalContent: "Your message may contain sensitive personal information. Are you sure you want to send it?",
-    piiSendAnyway: "Send Anyway",
-    // New Responsible AI Policy
-    responsibleAiPolicy: "Responsible AI Policy",
-    responsibleAiPolicyTitle: "Responsible AI Policy",
-    responsibleAiPolicyContent: `
-**Our Commitment to Responsible AI**
-Betalive AI is designed to be a helpful and harmless assistant. We are committed to developing and deploying artificial intelligence responsibly, guided by principles of fairness, accountability, and transparency.
-
-**1. Intended Use**
-This AI is intended for general information, creative tasks, and personal assistance. It should not be used for:
-- Activities that are illegal, unethical, or harmful.
-- Generating hate speech, harassment, or discriminatory content.
-- Spreading misinformation or disinformation.
-- Decisions in high-stakes domains (e.g., medical diagnosis, legal advice, financial planning) without professional human consultation.
-
-**2. Safety and Harm Prevention**
-We employ safety filters and content moderation to prevent the generation of unsafe or harmful content. Users are encouraged to report any inappropriate responses. We do not tolerate the use of our service for creating explicit, violent, or abusive material.
-
-**3. Fairness and Bias**
-AI models learn from vast amounts of data and may reflect existing societal biases. We are actively working to reduce bias and promote fairness. Users should be aware that AI-generated content can sometimes be inaccurate or biased and should use critical judgment.
-
-**4. Transparency**
-We believe you should know when you are interacting with an AI. This application clearly identifies itself as an AI assistant powered by Google's Gemini models. Your conversations may be used (with privacy-preserving techniques) to improve our services if you opt-in via the 'Improve AI Models' setting.
-
-**5. Accountability**
-You are responsible for how you use the AI. Do not use it for harmful purposes. We are accountable for the system's behavior and are committed to addressing any issues that arise. If you have concerns, please contact us at support@betalive.dev.
-`,
-    })
-  },
-};
-
-// --- CONSTANTS ---
-const API_KEY = process.env.API_KEY;
-const PII_REGEX = /(\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b|(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/i;
-const APP_VERSION = "2.5.0"; // Incremented version
-const DEV_PIN = "2024";
-
-const defaultSettings: AppSettings = {
-  language: 'en',
-  enabledModels: { openai: true, meta: false, amazon: false, microsoft: false },
-  voiceCommands: true,
-  textToSpeech: false,
-  ttsVoice: null,
-  appleIntelligence: false,
-  carMode: false,
-  saveConversations: true,
-  conversationRetentionPolicy: 'forever',
-  logActivity: true,
-  improveAI: true,
-  useCustomSystemPrompt: false,
-  customSystemPrompt: '',
-  photoMetadataPrivacy: true,
-  allowMicrophone: true,
-  allowCamera: true,
-  enableCallIntegration: true,
-  hideIpAddress: false,
-  locationAccess: 'approximate',
-  piiSendWarning: true,
-  enableCareerGuidance: true,
-  developerMode: false,
-  enableThirdPartyIntegrations: false,
-  thirdPartyApiKeys: { openai: '' },
-  activeThirdPartyModel: 'gemini',
-  integrationApiKey: '',
-  apiCallLogging: false,
-  forceEphemeral: false,
-  privacySandbox: false,
-  privacySandboxRedactionLevel: 'standard',
-  privacySandboxTopicWarning: false,
-
-  developerLatencySimulation: 0,
-};
-
-// --- HELPER COMPONENTS ---
-const Modal = ({ children, onClose, title }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 animate-fade-in" onClick={onClose}>
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-lg w-full max-w-lg max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="p-5 border-b border-slate-800 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-white">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
-        <div className="p-6 overflow-y-auto">
-          {children}
-        </div>
+const PRIVACY_POLICY_HTML = `<!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset='utf-8'>
+      <meta name='viewport' content='width=device-width'>
+      <title>Privacy Policy</title>
+      <style>
+        body {
+          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+          padding: 1em;
+          background-color: #0f172a;
+          color: #e2e8f0;
+        }
+        h1, h2, h3 {
+          color: #ffffff;
+        }
+        a {
+          color: #38bdf8;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+      </style>
+    </head>
+    <body>
+    <div class="container">
+      <h1>Privacy Policy</h1>
+      <p>Last updated: July 24, 2024</p>
+      <p>This Privacy Policy describes Our policies and procedures on the collection, use and disclosure of Your information when You use the Service and tells You about Your privacy rights and how the law protects You.</p>
+      <p>We use Your Personal data to provide and improve the Service. By using the Service, You agree to the collection and use of information in accordance with this Privacy Policy.</p>
+      
+      <h2>Interpretation and Definitions</h2>
+      <h3>Interpretation</h3>
+      <p>The words of which the initial letter is capitalized have meanings defined under the following conditions. The following definitions shall have the same meaning regardless of whether they appear in singular or in plural.</p>
+      <h3>Definitions</h3>
+      <p>For the purposes of this Privacy Policy:</p>
+      <ul>
+        <li>
+          <p><strong>Account</strong> means a unique account created for You to access our Service or parts of our Service.</p>
+        </li>
+        <li>
+          <p><strong>Affiliate</strong> means an entity that controls, is controlled by or is under common control with a party, where "control" means ownership of 50% or more of the shares, equity interest or other securities entitled to vote for election of directors or other managing authority.</p>
+        </li>
+        <li>
+          <p><strong>Application</strong> refers to Betalive AI, the software program provided by the Company.</p>
+        </li>
+        <li>
+          <p><strong>Company</strong> (referred to as either "the Company", "We", "Us" or "Our" in this Agreement) refers to Betalive.</p>
+        </li>
+        <li>
+          <p><strong>Country</strong> refers to: British Columbia, Canada</p>
+        </li>
+        <li>
+          <p><strong>Device</strong> means any device that can access the Service such as a computer, a cellphone or a digital tablet.</p>
+        </li>
+        <li>
+          <p><strong>Personal Data</strong> is any information that relates to an identified or identifiable individual.</p>
+        </li>
+        <li>
+          <p><strong>Service</strong> refers to the Application.</p>
+        </li>
+        <li>
+          <p><strong>Service Provider</strong> means any natural or legal person who processes the data on behalf of the Company. It refers to third-party companies or individuals employed by the Company to facilitate the Service, to provide the Service on behalf of the Company, to perform services related to the Service or to assist the Company in analyzing how the Service is used.</p>
+        </li>
+        <li>
+          <p><strong>Usage Data</strong> refers to data collected automatically, either generated by the use of the Service or from the Service infrastructure itself (for example, the duration of a page visit).</p>
+        </li>
+        <li>
+          <p><strong>You</strong> means the individual accessing or using the Service, or the company, or other legal entity on behalf of which such individual is accessing or using the Service, as applicable.</p>
+        </li>
+      </ul>
+      
+      <h2>Collecting and Using Your Personal Data</h2>
+      <h3>Types of Data Collected</h3>
+      <h4>Personal Data</h4>
+      <p>While using Our Service, We may ask You to provide Us with certain personally identifiable information that can be used to contact or identify You. Since this is a local-first application, all personal data, including your username, password, settings, and conversation history, is stored exclusively on your device. We do not collect, transmit, or have access to any of this information.</p>
+      <p>Information you provide is processed locally on your device.</p>
+      
+      <h4>Usage Data</h4>
+      <p>Usage Data is collected automatically when using the Service.</p>
+      <p>Usage Data may include information such as Your Device's Internet Protocol address (e.g. IP address), browser type, browser version, the pages of our Service that You visit, the time and date of Your visit, the time spent on those pages, unique device identifiers and other diagnostic data.</p>
+      <p>We do not collect Usage Data. All processing and data storage is done on your local device.</p>
+      
+      <h4>Information Collected while Using the Application</h4>
+      <p>While using Our Application, in order to provide features of Our Application, We may collect, with Your prior permission:</p>
+      <ul>
+        <li>Information regarding your location</li>
+        <li>Pictures and other information from your Device's camera and photo library</li>
+      </ul>
+      <p>We use this information to provide features of Our Service, to improve and customize Our Service. The information is stored locally on Your device and is not uploaded to the Company's servers.</p>
+      <p>You can enable or disable access to this information at any time, through Your Device settings.</p>
+      
+      <h3>Use of Your Personal Data</h3>
+      <p>The Company may use Personal Data for the following purposes:</p>
+      <ul>
+        <li>
+          <p><strong>To provide and maintain our Service</strong>, including to monitor the usage of our Service.</p>
+        </li>
+        <li>
+          <p><strong>To manage Your Account:</strong> to manage Your registration as a user of the Service. The Personal Data You provide can give You access to different functionalities of the Service that are available to You as a registered user.</p>
+        </li>
+      </ul>
+      <p>Since all data is stored locally, we do not share your personal information with anyone.</p>
+      
+      <h3>Retention of Your Personal Data</h3>
+      <p>The Company will retain Your Personal Data only for as long as it is stored on your device. Since we do not collect your data, we do not have a retention policy for it.</p>
+      
+      <h3>Deletion of Your Personal Data</h3>
+      <p>You have the right to delete or request that We assist in deleting the Personal Data that We have collected about You.</p>
+      <p>You can delete your information by clearing the application data from your browser or device settings.</p>
+      
+      <h2>Security of Your Personal Data</h2>
+      <p>The security of Your Personal Data is important to Us, but remember that no method of transmission over the Internet, or method of electronic storage is 100% secure. While We strive to use commercially acceptable means to protect Your Personal Data, We cannot guarantee its absolute security. All data is stored on your device, so the security of your data depends on the security of your device.</p>
+      
+      <h2>Children's Privacy</h2>
+      <p>Our Service does not address anyone under the age of 13. We do not knowingly collect personally identifiable information from anyone under the age of 13. If You are a parent or guardian and You are aware that Your child has provided Us with Personal Data, please contact Us. If We become aware that We have collected Personal Data from anyone under the age of 13 without verification of parental consent, We take steps to remove that information from Our servers.</p>
+      <p>If We need to rely on consent as a legal basis for processing Your information and Your country requires consent from a parent, We may require Your parent's consent before We collect and use that information.</p>
+      
+      <h2>Links to Other Websites</h2>
+      <p>Our Service may contain links to other websites that are not operated by Us. If You click on a third party link, You will be directed to that third party's site. We strongly advise You to review the Privacy Policy of every site You visit.</p>
+      <p>We have no control over and assume no responsibility for the content, privacy policies or practices of any third party sites or services.</p>
+      
+      <h2>Changes to this Privacy Policy</h2>
+      <p>We may update Our Privacy Policy from time to time. We will notify You of any changes by posting the new Privacy Policy on this page.</p>
+      <p>We will let You know via email and/or a prominent notice on Our Service, prior to the change becoming effective and update the "Last updated" date at the top of this Privacy Policy.</p>
+      <p>You are advised to review this Privacy Policy periodically for any changes. Changes to this Privacy Policy are effective when they are posted on this page.</p>
+      
+      <h2>Contact Us</h2>
+      <p>If you have any questions about this Privacy Policy, You can contact us:</p>
+      <ul>
+        <li>By email: infobetalive@protonmail.com</li>
+      </ul>
       </div>
-    </div>
-);
+    </body>
+    </html>`;
 
-const PolicyModalContent = ({ content }) => {
-  const formattedContent = content.split('\n').map((paragraph, index) => {
-    if (paragraph.startsWith('**') && paragraph.endsWith('**')) {
-      return <h3 key={index} className="text-lg font-semibold text-sky-300 mt-4 mb-2">{paragraph.slice(2, -2)}</h3>;
+// --- MOCK API (to be replaced with actual backend) ---
+const mockApi = {
+  // Simulates fetching translations
+  getTranslations: (language: Language) => {
+    const allTranslations = {
+      en: {
+        "appTitle": "Betalive AI",
+        "newChat": "New Chat",
+        "history": "History",
+        "inputPlaceholder": "Ask me anything...",
+        "send": "Send",
+        "loading": "...",
+        "deleteConfirm": "Are you sure you want to delete this conversation?",
+        "welcomeGreeting": "{greeting}, {username}.",
+        "welcomeMessage": "I am Betalive AI. How can I assist you today?",
+        "qa_analyze": "Analyze & Create",
+        "qa_analyze_prompt": "Analyze, translate, explain, or brainstorm ideas about: ",
+        "qa_culture": "Iraqi Culture",
+        "qa_culture_prompt": "Tell me about an aspect of Iraqi culture: ",
+        "qa_image": "Image",
+        "qa_image_prompt": "Generate an image of: ",
+        "qa_code": "Code",
+        "qa_code_prompt": "Write code for: ",
+        "settingsTitle": "Settings",
+        "general": "General",
+        "language": "Language",
+        "saveConversations": "Save Conversations",
+        "features": "Features",
+        "voiceCommands": "Voice Commands",
+        "enableQuickActions": "Enable Quick Actions",
+        "textToSpeech": "Text-to-Speech",
+        "securityScan": "Security Scan",
+        "securityScanDesc": "Scan prompts for sensitive data like keys or passwords.",
+        "account": "Account",
+        "loggedInAs": "You are logged in as {username}.",
+        "logOut": "Log Out",
+        "legal": "Legal & Policies",
+        "privacyPolicy": "Privacy Policy",
+        "responsibleAiPolicy": "Responsible AI Policy",
+        "welcomeBack": "Welcome back",
+        "createAccount": "Create an account",
+        "username": "Username",
+        "password": "Password",
+        "logIn": "Log In",
+        "register": "Register",
+        "dontHaveAccount": "Don't have an account?",
+        "alreadyHaveAccount": "Already have an account?",
+        "signUp": "Sign Up",
+        "developerOptions": "Developer Options",
+        "showLatency": "Show Network Latency",
+        "showLatencyDesc": "Display the model response time on each message.",
+        "useAdvancedModelSettings": "Use Advanced Model Settings",
+        "temperature": "Temperature",
+        "topP": "Top-P",
+        "integrations": "Third-Party Integrations",
+        "integrationsDesc": "Manage connections to other services (demonstration).",
+        "privacyAndSecurity": "Privacy & Security",
+        "enablePrivacySandbox": "Enable Privacy Sandbox",
+        "enablePrivacySandboxDesc": "Conceptual setting for future privacy-preserving APIs.",
+        "warnSensitiveTopics": "Warn on Sensitive Topics",
+        "warnSensitiveTopicsDesc": "Provides a warning when prompts contain potentially sensitive topics.",
+        "stripImageMetadata": "Strip Image Metadata (Privacy)",
+        "stripImageMetadataDesc": "Removes location and other metadata from uploaded images.",
+        "enableEphemeralSessions": "Enable Ephemeral Sessions",
+        "enableEphemeralSessionsDesc": "Chat history will not be saved for the current session.",
+        "activityLog": "Activity Log",
+        "viewActivityLog": "View Activity Log",
+        "ephemeralModeActive": "Ephemeral Mode: This chat will not be saved.",
+      },
+      ar: {
+        "appTitle": "بيتالايف AI",
+        "newChat": "محادثة جديدة",
+        "history": "السجل",
+        "inputPlaceholder": "اسألني أي شيء...",
+        "send": "إرسال",
+        "loading": "جار التحميل...",
+        "deleteConfirm": "هل أنت متأكد أنك تريد حذف هذه المحادثة؟",
+        "welcomeGreeting": "{greeting}, {username}.",
+        "welcomeMessage": "أنا بيتالايف AI. كيف يمكنني مساعدتك اليوم؟",
+        "qa_analyze": "تحليل وإنشاء",
+        "qa_analyze_prompt": "حلل، ترجم، اشرح، أو إطرح أفكارًا حول: ",
+        "qa_culture": "الثقافة العراقية",
+        "qa_culture_prompt": "أخبرني عن جانب من جوانب الثقافة العراقية: ",
+        "qa_image": "صورة",
+        "qa_image_prompt": "إنشاء صورة لـ: ",
+        "qa_code": "كود",
+        "qa_code_prompt": "اكتب كودًا لـ: ",
+        "settingsTitle": "الإعدادات",
+        "general": "عام",
+        "language": "اللغة",
+        "saveConversations": "حفظ المحادثات",
+        "features": "الميزات",
+        "voiceCommands": "الأوامر الصوتية",
+        "enableQuickActions": "تفعيل الإجراءات السريعة",
+        "textToSpeech": "تحويل النص إلى كلام",
+        "securityScan": "فحص الأمان",
+        "securityScanDesc": "فحص الموجهات بحثًا عن بيانات حساسة مثل المفاتيح أو كلمات المرور.",
+        "account": "الحساب",
+        "loggedInAs": "لقد سجلت الدخول باسم {username}.",
+        "logOut": "تسجيل الخروج",
+        "legal": "قانوني وسياسات",
+        "privacyPolicy": "سياسة الخصوصية",
+        "responsibleAiPolicy": "سياسة الذكاء الاصطناعي المسؤولة",
+        "welcomeBack": "مرحبا بعودتك",
+        "createAccount": "إنشاء حساب",
+        "username": "اسم المستخدم",
+        "password": "كلمة المرور",
+        "logIn": "تسجيل الدخول",
+        "register": "تسجيل",
+        "dontHaveAccount": "ليس لديك حساب؟",
+        "alreadyHaveAccount": "هل لديك حساب بالفعل؟",
+        "signUp": "إنشاء حساب",
+        "developerOptions": "خيارات المطور",
+        "showLatency": "عرض زمن الاستجابة للشبكة",
+        "showLatencyDesc": "عرض وقت استجابة النموذج في كل رسالة.",
+        "useAdvancedModelSettings": "استخدام إعدادات النموذج المتقدمة",
+        "temperature": "درجة الحرارة",
+        "topP": "Top-P",
+        "integrations": "تكاملات الطرف الثالث",
+        "integrationsDesc": "إدارة الاتصالات بخدمات أخرى (للتوضيح).",
+        "privacyAndSecurity": "الخصوصية والأمان",
+        "enablePrivacySandbox": "تفعيل صندوق حماية الخصوصية",
+        "enablePrivacySandboxDesc": "إعداد مفاهيمي لواجهات برمجة التطبيقات المستقبلية التي تحافظ على الخصوصية.",
+        "warnSensitiveTopics": "التحذير من المواضيع الحساسة",
+        "warnSensitiveTopicsDesc": "يوفر تحذيرًا عندما تحتوي الموجهات على مواضيع قد تكون حساسة.",
+        "stripImageMetadata": "إزالة البيانات الوصفية للصور (خصوصية)",
+        "stripImageMetadataDesc": "يزيل بيانات الموقع والبيانات الوصفية الأخرى من الصور المرفوعة.",
+        "enableEphemeralSessions": "تفعيل الجلسات المؤقتة",
+        "enableEphemeralSessionsDesc": "لن يتم حفظ سجل الدردشة للجلسة الحالية.",
+        "activityLog": "سجل النشاط",
+        "viewActivityLog": "عرض سجل النشاط",
+        "ephemeralModeActive": "الوضع المؤقت: لن يتم حفظ هذه الدردشة.",
+      },
+      aii: {
+        "appTitle": "Betalive AI (Neo-Aramaic)",
+        "welcomeMessage": "ܫܠܵܡܵܐ! ܕܵܐܟ݂ܝܼ ܡܵܨܸܢ βοηθητικό اليوم؟",
+        "inputPlaceholder": "Type your message or upload an image...",
+      }
+    };
+    // Merge selected language with English as a fallback for missing keys
+    const translations = { ...allTranslations.en, ...allTranslations[language] };
+    return Promise.resolve(translations);
+  },
+  // Simulates checking security
+  scanForSecurityIssues: async (text: string, checkSensitiveTopics: boolean): Promise<SecurityScanResult> => {
+    // In a real app, this would call a security API.
+    // Here, we'll just do a mock scan for sensitive patterns.
+    const issues: string[] = [];
+    const sensitivePatterns = {
+      "Credit Card Number": /\b\d{4}[ -]?\d{4}[ -]?\d{4}[ -]?\d{4}\b/g,
+      "Social Security Number": /\b\d{3}-\d{2}-\d{4}\b/g,
+      "Email Address": /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i,
+      "Phone Number": /\b(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/g,
+    };
+
+    for (const [issue, pattern] of Object.entries(sensitivePatterns)) {
+      if (pattern.test(text)) {
+        issues.push(issue);
+      }
     }
-     if (paragraph.startsWith('- ')) {
-      return <li key={index} className="ml-5 list-disc text-slate-300">{paragraph.slice(2)}</li>
+
+    // Simulate a check for harmful language
+    const harmfulWords = ["malware", "phishing", "exploit"];
+    if (harmfulWords.some(word => text.toLowerCase().includes(word))) {
+      issues.push("Potentially Harmful Language");
     }
-    return <p key={index} className="text-slate-300 mb-4">{paragraph}</p>;
-  });
 
-  return <>{formattedContent}</>;
-}
+    if(checkSensitiveTopics) {
+        const sensitiveTopics = ["politics", "religion", "finance", "medical advice"];
+         if (sensitiveTopics.some(word => text.toLowerCase().includes(word))) {
+            issues.push("Sensitive Topic");
+        }
+    }
 
+    return Promise.resolve({
+      isSafe: issues.length === 0,
+      issues: issues,
+    });
+  },
+};
 
-const PrivacyPolicyModal = ({ t, onClose }) => (
-  <Modal title={t.privacyPolicyTitle} onClose={onClose}>
-    <div className="prose prose-invert text-slate-300">
-      <PolicyModalContent content={t.privacyPolicyContent}/>
-    </div>
-    <div className="mt-6 flex justify-end">
-        <button onClick={onClose} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-700 transition-colors">{t.done}</button>
-    </div>
-  </Modal>
-);
+// --- Helper Functions ---
+const getGreeting = (language: Language) => {
+  const hour = new Date().getHours();
+  const greetings = {
+      morning: { en: 'Good morning', ar: 'صباح الخير', aii: 'Good morning' },
+      afternoon: { en: 'Good afternoon', ar: 'مساء الخير', aii: 'Good afternoon' },
+      evening: { en: 'Good evening', ar: 'مساء الخير', aii: 'Good evening' },
+  };
+  
+  if (hour < 12) return greetings.morning[language] || greetings.morning.en;
+  if (hour < 18) return greetings.afternoon[language] || greetings.afternoon.en;
+  return greetings.evening[language] || greetings.evening.en;
+};
 
-const ResponsibleAiPolicyModal = ({ t, onClose }) => (
-  <Modal title={t.responsibleAiPolicyTitle} onClose={onClose}>
-    <div className="prose prose-invert text-slate-300">
-      <PolicyModalContent content={t.responsibleAiPolicyContent}/>
-    </div>
-    <div className="mt-6 flex justify-end">
-        <button onClick={onClose} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-700 transition-colors">{t.done}</button>
-    </div>
-  </Modal>
-);
-
-const PiiConfirmationModal = ({ t, onConfirm, onCancel }) => (
-    <Modal title={t.piiModalTitle} onClose={onCancel}>
-      <p className="text-slate-300">{t.piiModalContent}</p>
-      <div className="mt-6 flex justify-end gap-3">
-        <button onClick={onCancel} className="bg-slate-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-600 transition-colors">{t.cancel}</button>
-        <button onClick={onConfirm} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-700 transition-colors">{t.piiSendAnyway}</button>
-      </div>
-    </Modal>
-);
-
-const Switch = ({ checked, onChange }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    onClick={() => onChange(!checked)}
-    className={`${
-      checked ? 'bg-sky-500' : 'bg-slate-600'
-    } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-900`}
-  >
-    <span
-      aria-hidden="true"
-      className={`${
-        checked ? 'translate-x-5' : 'translate-x-0'
-      } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
-    />
-  </button>
-);
-
-
-// --- MAIN APP COMPONENT ---
+// --- Main App Component ---
 const App: React.FC = () => {
-  // State variables
-  const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
+  // State Management
+  const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>(() => {
     const savedUsers = localStorage.getItem('betalive_users');
     return savedUsers ? JSON.parse(savedUsers) : [];
   });
 
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-
-  const [inputText, setInputText] = useState('');
-  const [images, setImages] = useState<string[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  const [apiLogs, setApiLogs] = useState<ApiCallLog[]>([]);
-  const [devSystemPrompt, setDevSystemPrompt] = useState('');
-
-
+  const [prompt, setPrompt] = useState('');
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [showVisualLookup, setShowVisualLookup] = useState(false);
-  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
-  const [showResponsibleAiPolicy, setShowResponsibleAiPolicy] = useState(false);
-  const [piiConfirmation, setPiiConfirmation] = useState<string | null>(null);
-  const [showQuickActions, setShowQuickActions] = useState(false);
-  const [activeQuickActionSubmenu, setActiveQuickActionSubmenu] = useState<null | 'tone' | 'translate'>(null);
+  const [showPolicy, setShowPolicy] = useState<'privacy' | 'responsible_ai' | null>(null);
+  const [showActivityLog, setShowActivityLog] = useState(false);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isDevModeUnlocked, setIsDevModeUnlocked] = useState(false);
   
-  // Developer Mode Modals State
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [showApiLogsModal, setShowApiLogsModal] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState('');
+  const defaultSettings: AppSettings = {
+    language: 'en',
+    enabledModels: { openai: true, meta: false, amazon: false, microsoft: false },
+    voiceCommands: true,
+    textToSpeech: false,
+    saveConversations: true,
+    useCustomSystemPrompt: false,
+    customSystemPrompt: "You are a helpful assistant.",
+    enableCareerGuidance: false,
+    appleIntelligence: false,
+    developerMode: false,
+    enableSecurityScan: true,
+    enableQuickActions: true,
+    showLatency: false,
+    useAdvancedModelSettings: false,
+    customTemperature: 0.7,
+    customTopP: 0.9,
+    thirdPartyIntegrations: { googleDrive: false, slack: false },
+    enablePrivacySandbox: false,
+    warnSensitiveTopics: true,
+    stripImageMetadata: true,
+    enableEphemeralSessions: false,
+  };
 
+  const [appSettings, setAppSettings] = useState<AppSettings>(defaultSettings);
 
-  // Refs and other hooks
-  const aiRef = useRef<GoogleGenAI | null>(null);
-  const chatRef = useRef<Chat | null>(null);
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const quickActionsRef = useRef<HTMLDivElement>(null);
+  const promptInputRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<any>(null);
 
-  const t = translations[settings.language] || translations.en;
-  const currentSession = sessions.find(s => s.id === currentSessionId);
-  const isDevOverrideActive = settings.developerMode && (devSystemPrompt.trim() !== '' || settings.developerLatencySimulation > 0);
-
-  // --- Effects ---
-
-  // Check for a logged in user on app start
+  // --- Gemini AI Initialization ---
+  const ai = useRef<GoogleGenAI | null>(null);
   useEffect(() => {
-    const loggedInUserEmail = localStorage.getItem('betalive_currentUserEmail');
-    if (loggedInUserEmail) {
-        const user = users.find(u => u.email === loggedInUserEmail);
-        if (user) {
-            setCurrentUser(user);
-            setAuthStatus('authenticated');
-        } else {
-            localStorage.removeItem('betalive_currentUserEmail');
-            setAuthStatus('unauthenticated');
-        }
+    if (process.env.API_KEY) {
+      ai.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
     } else {
-        setAuthStatus('unauthenticated');
+      console.error("API_KEY environment variable not set.");
     }
-  }, []); // Run only on mount. `users` state is available.
+  }, []);
 
-  // Initialize AI
+  // --- Translation Management ---
   useEffect(() => {
-    if (API_KEY) {
-      aiRef.current = new GoogleGenAI({ apiKey: API_KEY });
-    } else {
-      setError(t.errorApi);
-    }
-  }, [t.errorApi]);
+    mockApi.getTranslations(appSettings.language).then(setTranslations);
+  }, [appSettings.language]);
 
-  // Load user data on auth change
-  useEffect(() => {
-    if (authStatus === 'authenticated' && currentUser) {
-      setSettings(currentUser.settings);
-      setSessions(currentUser.sessions);
-      const lastSession = currentUser.sessions.length > 0 ? currentUser.sessions[currentUser.sessions.length-1].id : null;
-      setCurrentSessionId(lastSession);
-    } else {
-      setSettings(defaultSettings);
-      setSessions([]);
-      setCurrentSessionId(null);
+  const t = (key: string, replacements?: Record<string, string>) => {
+    let text = translations[key] || key; // Fallback to key if not found
+    if (replacements) {
+        Object.keys(replacements).forEach(rKey => {
+            text = text.replace(`{${rKey}}`, replacements[rKey]);
+        });
     }
-  }, [authStatus, currentUser]);
+    return text;
+  };
 
-  // Save users to localStorage whenever they change
+  // --- Auth & User Management ---
   useEffect(() => {
     localStorage.setItem('betalive_users', JSON.stringify(users));
   }, [users]);
-  
-  // Scroll to bottom of messages
+
+  const updateUser = useCallback((updatedUser: User) => {
+    setCurrentUser(updatedUser);
+    setUsers(prevUsers => prevUsers.map(u => u.id === updatedUser.id ? updatedUser : u));
+  }, []);
+
+  const logActivity = useCallback((action: string, details?: string) => {
+    if (!currentUser) return;
+    const newLog: ActivityLog = {
+        id: `log_${Date.now()}`,
+        timestamp: Date.now(),
+        action,
+        details,
+    };
+    const updatedUser = {
+        ...currentUser,
+        activityLog: [...(currentUser.activityLog || []), newLog],
+    };
+    updateUser(updatedUser);
+  }, [currentUser, updateUser]);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentSession?.messages]);
-  
-  // Handle clicks outside of quick actions menu
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (quickActionsRef.current && !quickActionsRef.current.contains(event.target as Node)) {
-        setShowQuickActions(false);
-        setActiveQuickActionSubmenu(null);
+    if (currentUser) {
+      setAppSettings(currentUser.settings);
+      setSessions(currentUser.sessions);
+      if (currentUser.sessions.length > 0) {
+        const sortedSessions = [...currentUser.sessions].sort((a, b) => b.createdAt - a.createdAt);
+        setActiveSessionId(sortedSessions[0].id);
+        setMessages(sortedSessions[0].messages);
+      } else {
+        createNewSession(false); // don't log activity on initial creation
       }
+    } else {
+      setMessages([]);
+      setSessions([]);
+      setActiveSessionId(null);
+      setAuthMode('login');
+      setAppSettings(defaultSettings);
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [quickActionsRef]);
+  }, [currentUser]);
 
 
-  // --- Core Functions ---
+  const handleRegister = (user: Omit<User, 'settings' | 'sessions' | 'id' | 'activityLog'>) => {
+    if (users.find(u => u.username === user.username)) {
+      alert("Username already exists.");
+      return;
+    }
+    const newUser: User = {
+      ...user,
+      id: `user_${Date.now()}`,
+      settings: appSettings,
+      sessions: [],
+      activityLog: [{ id: `log_${Date.now()}`, timestamp: Date.now(), action: 'Account Registered' }],
+    };
+    setUsers([...users, newUser]);
+    setCurrentUser(newUser);
+    setAuthMode('app');
+  };
+
+  const handleLogin = (credentials: Omit<User, 'settings' | 'sessions' | 'id' | 'username' | 'activityLog'> & { username: string }) => {
+    const user = users.find(u => u.username === credentials.username && u.password === credentials.password);
+    if (user) {
+      const updatedUser = {
+        ...user,
+        activityLog: [...(user.activityLog || []), { id: `log_${Date.now()}`, timestamp: Date.now(), action: 'Logged In' }]
+      }
+      setCurrentUser(updatedUser);
+      setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+      setAuthMode('app');
+    } else {
+      alert("Invalid username or password.");
+    }
+  };
+
   const handleLogout = () => {
-    localStorage.removeItem('betalive_currentUserEmail');
+    logActivity("Logged Out");
     setCurrentUser(null);
-    setAuthStatus('unauthenticated');
-    setSessions([]);
-    setCurrentSessionId(null);
   };
 
-  const updateSetting = (key: keyof AppSettings, value: any) => {
-    if (!currentUser) return;
-    const newSettings = { ...settings, [key]: value };
-    setSettings(newSettings);
 
-    const updatedUsers = users.map(user =>
-      user.email === currentUser.email ? { ...user, settings: newSettings } : user
-    );
-    setUsers(updatedUsers);
-  };
-  
-  const createNewSession = () => {
+  // --- Session Management ---
+  const createNewSession = (log: boolean = true) => {
     if (!currentUser) return;
+    if (log) logActivity("Created New Session");
     const newSession: ChatSession = {
       id: `session_${Date.now()}`,
-      title: 'New Chat',
+      title: "New Chat",
       messages: [],
       createdAt: Date.now(),
     };
     const updatedSessions = [...sessions, newSession];
+    const updatedUser = { ...currentUser, sessions: updatedSessions };
+    updateUser(updatedUser);
+    
+    // Update state directly after updating user
     setSessions(updatedSessions);
-    setCurrentSessionId(newSession.id);
-    
-    // Clear session-only dev overrides
-    setDevSystemPrompt('');
-
-     const updatedUsers = users.map(user =>
-      user.email === currentUser.email ? { ...user, sessions: updatedSessions } : user
-    );
-    setUsers(updatedUsers);
+    setActiveSessionId(newSession.id);
+    setMessages(newSession.messages);
   };
-  
-  const getSystemInstruction = (): Content | undefined => {
-      // Dev override takes top priority
-      if (settings.developerMode && devSystemPrompt.trim()) {
-          return { role: 'system', parts: [{ text: devSystemPrompt.trim() }] };
-      }
-      
-      let prompt = "";
-      if (settings.useCustomSystemPrompt && settings.customSystemPrompt.trim()) {
-        prompt += settings.customSystemPrompt.trim() + "\n\n";
-      }
 
-      const enabledModels = Object.entries(settings.enabledModels).filter(([, v]) => v).map(([k]) => k);
-      if(enabledModels.length > 0) {
-        prompt += `Simulate the personality and response style of the following AI models: ${enabledModels.join(', ')}. `;
-      }
-
-      if (settings.appleIntelligence) {
-        prompt += "Respond as Apple Intelligence, focusing on user privacy, on-device processing concepts, and a clean, helpful tone. ";
-      }
-
-      if (settings.carMode) {
-        prompt += "You are in Car Mode. Keep responses concise, clear, and focused on driving-related tasks. Prioritize safety. ";
-      }
-      
-      return prompt.trim() ? { role: 'system', parts: [{ text: prompt }] } : undefined;
+  const switchSession = (sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (session) {
+      setActiveSessionId(session.id);
+      setMessages(session.messages);
+      logActivity("Switched Session", `To: ${session.title.substring(0,20)}...`);
+    }
   };
-  
-  const initializeChat = () => {
-        if (!aiRef.current) return;
-        const systemInstruction = getSystemInstruction();
-        const config: any = { model: 'gemini-2.5-flash' };
-        if (systemInstruction) {
-           config.systemInstruction = systemInstruction;
-        }
-        chatRef.current = AiService.createChat(aiRef.current, config);
-    };
 
-    const addMessage = (message: Partial<Message> & { role: Role; text: string; }) => {
-        if (!currentSessionId) {
-            // This should not happen if a session is created before sending a message
-            console.error("No active session to add message to.");
-            return;
-        }
-        const fullMessage: Message = {
-            ...message,
-            id: message.id || `msg_${Date.now()}`,
-            timestamp: message.timestamp || Date.now(),
-        };
-        const updatedSessions = sessions.map(session => {
-            if (session.id === currentSessionId) {
-                return { ...session, messages: [...session.messages, fullMessage] };
-            }
-            return session;
-        });
-        setSessions(updatedSessions);
-    };
-
-  const executeSend = async (text: string, attachedImages: string[]) => {
-      if (!aiRef.current || isGenerating) return;
-      if (!currentSessionId) {
-          console.error("Cannot send message, no session is active.");
-          return;
-      }
-
-      setIsGenerating(true);
-      setError(null);
-      initializeChat(); // Re-initialize with latest settings
-
-      addMessage({ role: 'user', text, images: attachedImages });
-      // Add a placeholder for the model's response
-      const modelMessageId = `msg_${Date.now() + 1}`;
-      addMessage({ id: modelMessageId, role: 'model', text: '', isGenerating: true, timestamp: Date.now() + 1 });
-
-      try {
-          // Construct message parts
-          const parts: Part[] = [{ text }];
-          attachedImages.forEach(imgBase64 => {
-              parts.push({
-                  inlineData: {
-                      mimeType: 'image/jpeg', // Assuming jpeg, could be improved
-                      data: imgBase64,
-                  },
-              });
-          });
-
-          const requestParams = {
-              model: 'gemini-2.5-flash',
-              contents: { role: 'user', parts },
-              systemInstruction: getSystemInstruction()
-          };
-          
-          // Latency Simulation
-          if (settings.developerMode && settings.developerLatencySimulation > 0) {
-              await new Promise(resolve => setTimeout(resolve, settings.developerLatencySimulation));
-          }
-
-          // Send message
-          const result = await AiService.generateContent(aiRef.current, settings, requestParams);
-          
-          // API Logging
-          if (settings.apiCallLogging) {
-              const log: ApiCallLog = {
-                  id: `log_${Date.now()}`,
-                  timestamp: Date.now(),
-                  request: requestParams,
-                  response: result, 
-              };
-              setApiLogs(prev => [...prev, log]);
-          }
-
-          const responseText = result.text;
-
-          // Update the placeholder message with the actual response
-          const updatedSessions = sessions.map(session => {
-              if (session.id === currentSessionId) {
-                  const updatedMessages = session.messages.map(msg =>
-                      msg.id === modelMessageId
-                          ? { ...msg, text: responseText, isGenerating: false }
-                          : msg
-                  );
-                  return { ...session, messages: updatedMessages };
-              }
-              return session;
-          });
-          setSessions(updatedSessions);
-
-
-      } catch (e) {
-          console.error(e);
-          setError(t.errorGeneral);
-          // Remove the placeholder on error
-          const updatedSessions = sessions.map(session => {
-            if(session.id === currentSessionId) {
-                return {...session, messages: session.messages.filter(m => m.id !== modelMessageId)}
-            }
-            return session;
-          });
-          setSessions(updatedSessions);
-      } finally {
-          setIsGenerating(false);
-          setInputText('');
-          setImages([]);
-      }
-  };
-  
-    const handleSend = async () => {
-        const textToSend = inputText.trim();
-        const imagesToSend = [...images];
-
-        if (!textToSend && imagesToSend.length === 0) return;
-        
-        let currentSessionExists = sessions.some(s => s.id === currentSessionId);
-        if (!currentSessionExists) {
-           createNewSession();
-           // Since state updates are async, we need to wait for the next render or handle it.
-           // For simplicity, we'll just return and let the user click send again. A better UX would queue the message.
-           // A quick fix is to execute send in a timeout to allow state to update
-           setTimeout(() => executeSend(textToSend, imagesToSend), 0);
-           return;
-        }
-
-        if (settings.piiSendWarning && PII_REGEX.test(textToSend)) {
-          setPiiConfirmation(textToSend);
-          return;
-        }
-
-        executeSend(textToSend, imagesToSend);
-    };
-
-    const handlePiiConfirmation = () => {
-        if (piiConfirmation) {
-            executeSend(piiConfirmation, images);
-        }
-        setPiiConfirmation(null);
-    };
-
-
-    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            const files = Array.from(event.target.files);
-            files.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const base64 = (e.target?.result as string).split(',')[1];
-                    setImages(prev => [...prev, base64]);
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-    };
+  const deleteSession = (sessionId: string) => {
+    if (!currentUser) return;
+    if (!confirm(t('deleteConfirm'))) return;
     
-    const executeQuickAction = (promptPrefix: string, promptSuffix: string = '', requiresText: boolean = true) => {
-        const text = inputText.trim();
-        if (requiresText && !text) {
-            setError(t.actionRequiresText);
-            setTimeout(() => setError(null), 3000);
-            return;
-        }
+    const sessionTitle = sessions.find(s => s.id === sessionId)?.title || 'Unknown';
+    logActivity("Deleted Session", `Title: ${sessionTitle.substring(0,20)}...`);
 
-        const fullPrompt = `${promptPrefix}${text ? `:\n\n---\n\n${text}` : ''}${promptSuffix}`;
-        
-        setShowQuickActions(false);
-        setActiveQuickActionSubmenu(null);
+    const updatedSessions = sessions.filter(s => s.id !== sessionId);
+    updateUser({ ...currentUser, sessions: updatedSessions });
 
-        let currentSessionExists = sessions.some(s => s.id === currentSessionId);
-        if (!currentSessionExists) {
-           createNewSession();
-           setTimeout(() => executeSend(fullPrompt, images), 0);
-        } else {
-           executeSend(fullPrompt, images);
-        }
-    };
-  
-  // --- UI Components (Inline for brevity) ---
-  
-    const PinModal = ({ onClose }) => {
-      const handlePinVerify = () => {
-          if (pinInput === DEV_PIN) {
-              updateSetting('developerMode', true);
-              onClose();
-          } else {
-              setPinError(t.pinModalError);
-              setPinInput('');
-          }
-      };
-
-      return (
-        <Modal title={t.pinModalTitle} onClose={onClose}>
-            <p className="text-slate-300 mb-4">{t.pinModalPrompt}</p>
-            <input
-                type="password"
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handlePinVerify()}
-                className="w-full p-2 rounded bg-slate-800 border border-slate-700 mb-2 text-center tracking-widest"
-                maxLength={4}
-                autoFocus
-            />
-            {pinError && <p className="text-red-400 text-sm mt-2">{pinError}</p>}
-            <div className="mt-6 flex justify-end">
-                <button onClick={handlePinVerify} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-700 transition-colors">{t.verifyPin}</button>
-            </div>
-        </Modal>
-      );
-    };
-
-    const ApiLogsModal = ({ onClose }) => (
-      <Modal title={t.apiCallInspector} onClose={onClose}>
-        <div className="space-y-4 max-h-[60vh]">
-            {apiLogs.length === 0 ? (
-                <p className="text-slate-400">{t.noApiLogs}</p>
-            ) : (
-                [...apiLogs].reverse().map(log => (
-                    <div key={log.id} className="bg-slate-800/50 p-3 rounded-lg">
-                        <p className="text-xs text-slate-500">{new Date(log.timestamp).toISOString()}</p>
-                        <div>
-                            <h4 className="font-semibold text-sky-300 mt-2">{t.request}</h4>
-                            <pre className="text-xs bg-slate-900 p-2 rounded-md overflow-x-auto"><code>{JSON.stringify(log.request, null, 2)}</code></pre>
-                        </div>
-                        <div>
-                            <h4 className="font-semibold text-sky-300 mt-2">{t.response}</h4>
-                            <pre className="text-xs bg-slate-900 p-2 rounded-md overflow-x-auto"><code>{JSON.stringify(log.response, null, 2)}</code></pre>
-                        </div>
-                    </div>
-                ))
-            )}
-        </div>
-      </Modal>
-    );
-
-  const SettingsModal = ({ onClose }) => {
-    
-    const handleDevModeToggle = (checked: boolean) => {
-        if (checked) {
-            // Turning on, show PIN modal
-            setPinInput('');
-            setPinError('');
-            setShowPinModal(true);
-        } else {
-            // Turning off
-            updateSetting('developerMode', false);
-            setDevSystemPrompt(''); // Clear session override
-        }
-    };
-    
-    const GeneralSection = () => (
-      <div>
-        <h3 className="text-lg font-semibold text-sky-300 mb-4">{t.general}</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300">{t.language}</label>
-            <select value={settings.language} onChange={(e) => updateSetting('language', e.target.value)}
-              className="mt-1 block w-full bg-slate-800 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-sky-500 focus:border-sky-500">
-              <option value="en">English</option>
-              <option value="ar">العربية</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    );
-    
-    const PrivacySection = () => (
-        <div>
-            <h3 className="text-lg font-semibold text-sky-300 mt-6 mb-4">{t.privacyAndSecurity}</h3>
-            <div className="space-y-4">
-                <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-lg">
-                    <div>
-                        <h4 className="font-semibold text-white">{t.saveConversations}</h4>
-                        <p className="text-sm text-slate-400 mt-1">{t.retentionPolicyDesc}</p>
-                    </div>
-                    <Switch checked={settings.saveConversations} onChange={(checked) => updateSetting('saveConversations', checked)} />
-                </div>
-                 <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-lg">
-                    <div>
-                        <h4 className="font-semibold text-white">{t.photoMetadataPrivacyTitle}</h4>
-                        <p className="text-sm text-slate-400 mt-1">{t.photoMetadataPrivacyDesc}</p>
-                    </div>
-                    <Switch checked={settings.photoMetadataPrivacy} onChange={(checked) => updateSetting('photoMetadataPrivacy', checked)} />
-                </div>
-                <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-lg">
-                    <div>
-                        <h4 className="font-semibold text-white">{t.piiSendWarningTitle}</h4>
-                        <p className="text-sm text-slate-400 mt-1">{t.piiSendWarningDesc}</p>
-                    </div>
-                    <Switch checked={settings.piiSendWarning} onChange={(checked) => updateSetting('piiSendWarning', checked)} />
-                </div>
-            </div>
-        </div>
-    );
-
-    const AiModelsSection = () => (
-      <div>
-        <h3 className="text-lg font-semibold text-sky-300 mt-6 mb-4">{t.aiModelsTitle}</h3>
-        <p className="text-sm text-slate-400 bg-slate-800/50 p-3 rounded-lg mb-4">{t.aiModelsInfo}</p>
-        {/* ... toggles for different models ... */}
-      </div>
-    );
-
-    const IraqiCultureSection = ({ t, settings, updateSetting }) => (
-        <div>
-          <h3 className="text-lg font-semibold text-sky-300 mt-6 mb-4">{t.iraqiCultureTitle}</h3>
-           <div className="mt-4 flex items-center justify-between bg-slate-800/50 p-3 rounded-lg">
-            <div>
-              <h4 className="font-semibold text-white">{t.iraqiTalentTitle}</h4>
-              <p className="text-sm text-slate-400 mt-1">{t.iraqiTalentDesc}</p>
-            </div>
-            <Switch checked={settings.enableCareerGuidance} onChange={(checked) => updateSetting('enableCareerGuidance', checked)} />
-          </div>
-        </div>
-    );
-
-    const AdvancedSection = () => (
-        <div>
-            <h3 className="text-lg font-semibold text-sky-300 mt-6 mb-4">{t.advanced}</h3>
-            <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-lg">
-                <div>
-                    <h4 className="font-semibold text-white">{t.developerMode}</h4>
-                </div>
-                <Switch checked={settings.developerMode} onChange={handleDevModeToggle} />
-            </div>
-            {settings.developerMode && (
-                <div className="mt-4 p-4 bg-slate-800/50 rounded-lg border border-sky-500/30 animate-fade-in">
-                    <h4 className="text-md font-bold text-sky-300 mb-4">{t.developerOptions}</h4>
-                    <div className="space-y-5">
-                         {/* API Logging */}
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h5 className="font-semibold text-white">{t.enableApiLogging}</h5>
-                                <p className="text-sm text-slate-400 mt-1">{t.apiLoggingDesc}</p>
-                            </div>
-                            <Switch checked={settings.apiCallLogging} onChange={(c) => updateSetting('apiCallLogging', c)} />
-                        </div>
-                        {settings.apiCallLogging && <button onClick={() => setShowApiLogsModal(true)} className="text-sm text-sky-400 hover:underline">{t.viewApiLogs}</button>}
-
-                        {/* System Prompt Override */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">{t.systemPromptOverride}</label>
-                            <p className="text-xs text-slate-400 mb-2">{t.systemPromptOverrideDesc}</p>
-                            <textarea
-                                value={devSystemPrompt}
-                                onChange={(e) => setDevSystemPrompt(e.target.value)}
-                                placeholder={t.systemPromptOverridePlaceholder}
-                                className="w-full bg-slate-800 border border-slate-600 rounded-md p-2 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-500 resize-y"
-                                rows={3}
-                            />
-                        </div>
-
-                        {/* Simulate Latency */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">{t.simulateLatency}</label>
-                             <p className="text-xs text-slate-400 mb-2">{t.simulateLatencyDesc}</p>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="number"
-                                    value={settings.developerLatencySimulation}
-                                    onChange={(e) => updateSetting('developerLatencySimulation', parseInt(e.target.value, 10) || 0)}
-                                    className="w-24 bg-slate-800 border border-slate-600 rounded-md p-2 text-white"
-                                />
-                                <span>ms</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-
-    return (
-      <Modal title={t.settingsTitle} onClose={onClose}>
-        <div className="space-y-6">
-          <GeneralSection />
-          <PrivacySection />
-          <AiModelsSection />
-          <IraqiCultureSection t={t} settings={settings} updateSetting={updateSetting} />
-          <AdvancedSection />
-
-          <div className="text-center text-xs text-slate-500 pt-4 border-t border-slate-800">
-            <div className="flex justify-center gap-4">
-               <button onClick={() => setShowPrivacyPolicy(true)} className="text-sky-400 hover:underline">{t.privacyPolicy}</button>
-               <button onClick={() => setShowResponsibleAiPolicy(true)} className="text-sky-400 hover:underline">{t.responsibleAiPolicy}</button>
-            </div>
-            <p className="mt-2">{t.version}: {APP_VERSION}</p>
-          </div>
-        </div>
-      </Modal>
-    );
-  };
-  
-  const QuickActionsMenu = () => {
-    const ActionButton = ({ icon, label, onClick, disabled = false }) => (
-      <button
-        onClick={onClick}
-        disabled={disabled || isGenerating}
-        className="w-full flex items-center gap-3 text-left p-2 rounded-lg hover:bg-sky-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-        <span className="text-sky-400">{icon}</span>
-        <span>{label}</span>
-      </button>
-    );
-
-    const languages = [
-        { code: 'ar', name: 'Arabic' },
-        { code: 'es', name: 'Spanish' },
-        { code: 'fr', name: 'French' },
-        { code: 'de', name: 'German' },
-        { code: 'zh', name: 'Chinese' },
-    ];
-
-    const MainMenu = () => (
-        <>
-            <h3 className="text-sm font-semibold text-slate-400 px-2 mb-1">{t.writingTools}</h3>
-            <div className="space-y-1">
-                <ActionButton icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>} label={t.improveWriting} onClick={() => executeQuickAction(t.improveWriting)} />
-                <ActionButton icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" /></svg>} label={t.summarizeText} onClick={() => executeQuickAction(t.summarizeText)} />
-                <ActionButton icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" /></svg>} label={t.changeTone} onClick={() => setActiveQuickActionSubmenu('tone')} />
-                <ActionButton icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 011.523-1.943A5.977 5.977 0 0116 10c0 .34-.028.675-.083 1H15a2 2 0 00-2 2v2.197A5.973 5.973 0 0110 16a5.973 5.973 0 01-2.197-1H5a2 2 0 01-2-2v-1a6.012 6.012 0 011.332-3.973z" clipRule="evenodd" /></svg>} label={t.translate} onClick={() => setActiveQuickActionSubmenu('translate')} />
-            </div>
-            <h3 className="text-sm font-semibold text-slate-400 px-2 mt-3 mb-1">{t.ideaGeneration}</h3>
-            <div className="space-y-1">
-                <ActionButton icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm-1.414 8.486l.707.707a1 1 0 01-1.414 1.414l-.707-.707a1 1 0 011.414-1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" /></svg>} label={t.brainstormIdeas} onClick={() => executeQuickAction(t.brainstormIdeas, '', false)} />
-                <ActionButton icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M15 4a3 3 0 00-2.7-2.98A3.012 3.012 0 0010.5 3.52 3 3 0 008 1a3.012 3.012 0 00-1.5.48A3 3 0 004 4c-1.1 0-2 .9-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6c0-1.1-.9-2-2-2zm-3 2v2.5a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5V6H6v10h8V6h-2z" /></svg>} label={t.writePoem} onClick={() => executeQuickAction(t.writePoem, '', false)} />
-                <ActionButton icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>} label={t.createStory} onClick={() => executeQuickAction(t.createStory, '', false)} />
-            </div>
-             <h3 className="text-sm font-semibold text-slate-400 px-2 mt-3 mb-1">{t.codeTools}</h3>
-             <div className="space-y-1">
-                <ActionButton icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>} label={t.explainCode} onClick={() => executeQuickAction(t.explainCode)} />
-                <ActionButton icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>} label={t.debugCode} onClick={() => executeQuickAction(t.debugCode)} />
-                <ActionButton icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg>} label={t.optimizeCode} onClick={() => executeQuickAction(t.optimizeCode)} />
-             </div>
-        </>
-    );
-
-    const SubMenu = ({ title, children }) => (
-        <>
-            <div className="flex items-center gap-2 mb-2">
-                <button onClick={() => setActiveQuickActionSubmenu(null)} className="p-1 rounded-full hover:bg-sky-500/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                </button>
-                <h3 className="text-sm font-semibold text-slate-300">{title}</h3>
-            </div>
-            <div className="space-y-1">{children}</div>
-        </>
-    );
-
-    const ToneMenu = () => (
-        <SubMenu title={t.changeTone}>
-            <ActionButton icon={<div/>} label={t.tone_professional} onClick={() => executeQuickAction(`Rewrite in a professional tone`)} />
-            <ActionButton icon={<div/>} label={t.tone_casual} onClick={() => executeQuickAction(`Rewrite in a casual tone`)} />
-            <ActionButton icon={<div/>} label={t.tone_friendly} onClick={() => executeQuickAction(`Rewrite in a friendly tone`)} />
-        </SubMenu>
-    );
-
-    const TranslateMenu = () => (
-        <SubMenu title={t.translate}>
-            {languages.map(lang => (
-                 <ActionButton key={lang.code} icon={<div/>} label={lang.name} onClick={() => executeQuickAction(`Translate to ${lang.name}`)} />
-            ))}
-        </SubMenu>
-    );
-
-    return (
-        <div ref={quickActionsRef} className="absolute bottom-full left-0 mb-2 w-64 bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-xl p-2 shadow-lg animate-fade-in-up z-20">
-            {activeQuickActionSubmenu === 'tone' ? <ToneMenu/> : activeQuickActionSubmenu === 'translate' ? <TranslateMenu/> : <MainMenu />}
-        </div>
-    )
-  }
-  
-  // --- Render Method ---
-  
-  if (authStatus === 'loading') {
-    return <div className="bg-slate-900 h-screen flex items-center justify-center text-white">Loading...</div>;
-  }
-
-  // A simplified login/auth screen for demonstration
-  const AuthScreen = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-
-    const handleLogin = () => {
-      const user = users.find(u => u.email === email && u.passwordHash === password);
-      if (user) {
-        localStorage.setItem('betalive_currentUserEmail', user.email);
-        setCurrentUser(user);
-        setAuthStatus('authenticated');
+    if (activeSessionId === sessionId) {
+      if (updatedSessions.length > 0) {
+        const sorted = [...updatedSessions].sort((a,b) => b.createdAt - a.createdAt);
+        switchSession(sorted[0].id);
       } else {
-        alert(t.errorUserNotFound);
+        createNewSession();
       }
-    };
+    }
+  };
+
+  // Auto-save messages to the current session
+  useEffect(() => {
+    if (!activeSessionId || !currentUser || !appSettings.saveConversations || appSettings.enableEphemeralSessions) return;
+
+    const activeSession = sessions.find(s => s.id === activeSessionId);
+    if (!activeSession || JSON.stringify(activeSession.messages) === JSON.stringify(messages)) {
+      return; 
+    }
+
+    const updatedSessions = sessions.map(s => {
+      if (s.id === activeSessionId) {
+        let newTitle = s.title;
+        if (newTitle === "New Chat" && messages.length > 0 && messages[0].role === 'user') {
+          newTitle = messages[0].text.substring(0, 30) + (messages[0].text.length > 30 ? '...' : '');
+        }
+        return { ...s, messages: messages, title: newTitle };
+      }
+      return s;
+    });
     
-    const handleRegister = () => {
-        // Dummy registration
-        const newUser = {
-            email: "user@example.com",
-            passwordHash: "password",
-            settings: defaultSettings,
-            sessions: [],
-            twoFactorEnabled: false
-        };
-        setUsers([...users, newUser]);
-        localStorage.setItem('betalive_currentUserEmail', newUser.email);
-        setCurrentUser(newUser);
-        setAuthStatus('authenticated');
+    if (JSON.stringify(currentUser.sessions) !== JSON.stringify(updatedSessions)) {
+        updateUser({ ...currentUser, sessions: updatedSessions });
     }
+  }, [messages, activeSessionId, currentUser, appSettings.saveConversations, appSettings.enableEphemeralSessions, sessions, updateUser]);
 
-    if (users.length === 0) {
-      // First time user, show a simplified registration
-      return (
-        <div className="bg-slate-900 h-screen flex flex-col items-center justify-center text-white p-4">
-            <h1 className="text-3xl font-bold mb-2">{t.chatTitle}</h1>
-            <p className="mb-6">{t.chatSubtitle}</p>
-            <p className="mb-4 text-center">Welcome! To get started, let's create a local profile.</p>
-            <button onClick={handleRegister} className="bg-sky-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-sky-700 transition-colors">Create Profile & Start</button>
-        </div>
-      )
+
+  // --- Speech Recognition ---
+  useEffect(() => {
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognitionAPI && appSettings.voiceCommands) {
+      recognitionRef.current = new SpeechRecognitionAPI();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = appSettings.language === 'ar' ? 'ar-IQ' : 'en-US';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setPrompt(prev => prev + transcript);
+        setIsRecording(false);
+      };
+      recognitionRef.current.onerror = (event: any) => { console.error("Speech recognition error:", event.error); setIsRecording(false); };
+      recognitionRef.current.onend = () => { setIsRecording(false); };
+    } else {
+      recognitionRef.current = null;
     }
+  }, [appSettings.voiceCommands, appSettings.language]);
 
-    return (
-      <div className="bg-slate-900 h-screen flex flex-col items-center justify-center text-white p-4">
-        <h1 className="text-3xl font-bold mb-2">{t.chatTitle}</h1>
-        <p className="mb-6">{t.chatSubtitle}</p>
-        <div className="w-full max-w-sm">
-            <input type="email" placeholder={t.email} value={email} onChange={e => setEmail(e.target.value)} className="w-full p-2 rounded bg-slate-800 border border-slate-700 mb-2"/>
-            <input type="password" placeholder={t.password} value={password} onChange={e => setPassword(e.target.value)} className="w-full p-2 rounded bg-slate-800 border border-slate-700 mb-4"/>
-            <button onClick={handleLogin} className="w-full bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-700 transition-colors">{t.login}</button>
-        </div>
-      </div>
-    );
+  const toggleRecording = () => {
+    if (!recognitionRef.current) return;
+    if (isRecording) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+    }
+    setIsRecording(!isRecording);
+  };
+
+
+  // --- Core AI Interaction ---
+  const executeSend = async (promptText: string, images: string[]) => {
+    if (isLoading) return;
+    if (!ai.current) {
+        alert("Gemini AI is not initialized. Please check your API key.");
+        return;
+    }
+    
+    logActivity("Sent Message");
+    setIsLoading(true);
+
+    const userMessage: Message = {
+        id: `user_${Date.now()}`,
+        role: 'user',
+        text: promptText,
+        images: images,
+        timestamp: Date.now(),
+    };
+
+    if (appSettings.enableSecurityScan) {
+        const scanResult = await mockApi.scanForSecurityIssues(promptText, appSettings.warnSensitiveTopics);
+        if (!scanResult.isSafe) {
+            userMessage.securityScanResult = scanResult;
+        }
+    }
+    
+    const newMessages: Message[] = [...messages, userMessage];
+    setMessages(newMessages);
+
+    const modelMessagePlaceholder: Message = {
+        id: `model_${Date.now()}`,
+        role: 'model',
+        text: '',
+        timestamp: Date.now(),
+        isGenerating: true,
+    };
+    setMessages([...newMessages, modelMessagePlaceholder]);
+
+    const startTime = Date.now();
+
+    try {
+        const model = ai.current;
+        let fullResponseText = '';
+        const rawChunks: GenerateContentResponse[] = [];
+
+        const contentsForApi: Content[] = newMessages
+            .filter(msg => msg.role === 'user' || msg.role === 'model') // Ensure only user/model roles are sent
+            .map((msg): Content => {
+                const parts: Part[] = [];
+
+                if (msg.images && msg.images.length > 0) {
+                    msg.images.forEach(imgData => {
+                        const match = imgData.match(/^data:(.*?);base64,/);
+                        parts.push({
+                            inlineData: {
+                                mimeType: match ? match[1] : 'image/jpeg',
+                                data: imgData.split(',')[1],
+                            }
+                        });
+                    });
+                }
+
+                if (msg.text) {
+                    parts.push({ text: msg.text });
+                }
+
+                return {
+                    role: msg.role,
+                    parts: parts,
+                };
+            });
+        
+        const config: any = {};
+        
+        let systemInstructionText: string;
+        if (appSettings.useCustomSystemPrompt && appSettings.customSystemPrompt) {
+            systemInstructionText = appSettings.customSystemPrompt;
+        } else {
+            const langMap = {
+                en: 'English',
+                ar: 'Arabic',
+                aii: 'Assyrian Neo-Aramaic'
+            };
+            const langName = langMap[appSettings.language] || 'English';
+            systemInstructionText = `You are a helpful assistant. Please provide responses in ${langName}.`;
+        }
+        config.systemInstruction = systemInstructionText;
+        
+        if (appSettings.useAdvancedModelSettings) {
+            config.temperature = appSettings.customTemperature;
+            config.topP = appSettings.customTopP;
+        }
+
+        const stream = await model.models.generateContentStream({
+            model: 'gemini-2.5-flash',
+            contents: contentsForApi,
+            config: config
+        });
+
+        for await (const chunk of stream) {
+            if(appSettings.developerMode) rawChunks.push(chunk);
+            const chunkText = chunk.text;
+            fullResponseText += chunkText;
+            setMessages(prev => prev.map(msg =>
+                msg.id === modelMessagePlaceholder.id ? { ...msg, text: fullResponseText } : msg
+            ));
+        }
+        
+        const latency = Date.now() - startTime;
+        setMessages(prev => prev.map(msg =>
+            msg.id === modelMessagePlaceholder.id ? { 
+                ...msg, 
+                isGenerating: false, 
+                timestamp: Date.now(), 
+                rawResponse: appSettings.developerMode ? JSON.stringify(rawChunks, null, 2) : undefined,
+                latency: latency
+            } : msg
+        ));
+
+    } catch (error) {
+        console.error("Error generating content:", error);
+        let errorMessage = "An unknown error occurred.";
+        if (error instanceof Error) {
+            if (error.message.includes('403')) {
+                errorMessage = "Error 403: Permission denied. Please verify the API key and its permissions.";
+            } else {
+                errorMessage = error.message;
+            }
+        }
+        setMessages(prev => prev.map(msg =>
+            msg.id === modelMessagePlaceholder.id
+            ? { ...msg, text: `Error: ${errorMessage}`, isGenerating: false, timestamp: Date.now() }
+            : msg
+        ));
+    } finally {
+        setIsLoading(false);
+    }
   };
   
-  if (authStatus !== 'authenticated' || !currentUser) {
-    return <AuthScreen />;
+  const handleSend = async (e?: React.FormEvent<HTMLFormElement>) => {
+    e?.preventDefault();
+    if (!prompt.trim() && uploadedImages.length === 0) return;
+    executeSend(prompt, uploadedImages);
+    setPrompt('');
+    setUploadedImages([]);
+  };
+
+  const resendPrompt = (message: Message) => {
+    if (isLoading) return;
+    executeSend(message.text, message.images || []);
+  };
+
+  // --- UI Effects and Handlers ---
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+  
+  const stripMetadata = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL(file.type));
+                } else {
+                    reject(new Error('Could not get canvas context'));
+                }
+            };
+            img.onerror = reject;
+            img.src = event.target?.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+        const files = Array.from(e.target.files);
+        logActivity("Image Uploaded", `${files.length} file(s)`);
+        
+        const imagePromises = files.map(file => {
+            if (appSettings.stripImageMetadata) {
+                return stripMetadata(file);
+            } else {
+                return new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = error => reject(error);
+                    reader.readAsDataURL(file);
+                });
+            }
+        });
+
+        try {
+            const images = await Promise.all(imagePromises);
+            setUploadedImages(prev => [...prev, ...images]);
+        } catch (error) {
+            console.error("Error processing images:", error);
+            alert("There was an error processing one or more images.");
+        }
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index));
+  };
+  
+   const quickActions = [
+    {
+      nameKey: 'qa_analyze',
+      promptKey: 'qa_analyze_prompt',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V5a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17zM15.211 6.276a1 1 0 00-1.414 0l-1.414 1.414a1 1 0 001.414 1.414l1.414-1.414a1 1 0 000-1.414zM10 10a1 1 0 011 1v6a1 1 0 11-2 0v-6a1 1 0 011-1z" />
+          <path d="M6 5a1 1 0 00-1.447-.894l-4 2A1 1 0 000 7v10a1 1 0 00.553.894l4 2A1 1 0 006 19V5z" />
+        </svg>
+      ),
+    },
+    { nameKey: 'qa_culture', promptKey: 'qa_culture_prompt', icon: ( <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"> <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.69-1.996l-.523-.866A7.512 7.512 0 002.5 8.027v.002a7.5 7.5 0 003.5 6.494l.523-.866a6.012 6.012 0 01-1.69-4.629v-.002zM15.668 11.973a6.012 6.012 0 01-1.69 1.996l.523.866A7.512 7.512 0 0017.5 11.973v-.002a7.5 7.5 0 00-3.5-6.494l-.523.866a6.012 6.012 0 011.69 4.629v.002z" clipRule="evenodd" /> </svg> ), },
+    { nameKey: 'qa_image', promptKey: 'qa_image_prompt', icon: ( <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"> <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /> </svg> ), },
+    { nameKey: 'qa_code', promptKey: 'qa_code_prompt', icon: ( <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"> <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 01-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" /> </svg> ), },
+  ];
+
+  const handleQuickAction = (text: string) => {
+    setPrompt(text);
+    promptInputRef.current?.focus();
+  };
+
+  // Render Logic
+  if (!currentUser) {
+    return <AuthScreen onLogin={handleLogin} onRegister={handleRegister} authMode={authMode} setAuthMode={setAuthMode} t={t} />;
   }
   
-  return (
-    <div className="h-screen w-screen bg-slate-900 text-white flex flex-col font-sans">
-      {/* Modals */}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
-      {showPrivacyPolicy && <PrivacyPolicyModal t={t} onClose={() => setShowPrivacyPolicy(false)} />}
-      {showResponsibleAiPolicy && <ResponsibleAiPolicyModal t={t} onClose={() => setShowResponsibleAiPolicy(false)} />}
-      {piiConfirmation && <PiiConfirmationModal t={t} onConfirm={handlePiiConfirmation} onCancel={() => setPiiConfirmation(null)} />}
-      {showPinModal && <PinModal onClose={() => setShowPinModal(false)} />}
-      {showApiLogsModal && <ApiLogsModal onClose={() => setShowApiLogsModal(false)} />}
-
-
-      {/* Header */}
-      <header className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm z-10">
-        <div className="flex items-center gap-3">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" className="h-8 w-8 text-sky-400"><rect width="256" height="256" fill="none"/><path d="M128,24a104,104,0,1,0,104,104A104.2,104.2,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Z" opacity="0.2"/><path d="M128,24a104,104,0,1,0,104,104A104.2,104.2,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216ZM88,128a40,40,0,0,1,40-40V68a60,60,0,0,0-60,60H88Zm80,0a40,40,0,0,1-40,40v20a60,60,0,0,0,60-60Z" fill="currentColor"/></svg>
-           <div>
-            <h1 className="text-xl font-bold text-white">{t.chatTitle}</h1>
-            <p className="text-sm text-slate-400">{t.chatSubtitle}</p>
+  if (showSettings) {
+    return <SettingsScreen
+              settings={appSettings}
+              onSettingsChange={setAppSettings}
+              onClose={() => setShowSettings(false)}
+              onLogout={handleLogout}
+              onShowPolicy={setShowPolicy}
+              onShowActivityLog={() => setShowActivityLog(true)}
+              currentUser={currentUser}
+              updateUser={updateUser}
+              logActivity={logActivity}
+              t={t}
+              isDevModeUnlocked={isDevModeUnlocked}
+              setIsDevModeUnlocked={setIsDevModeUnlocked}
+            />;
+  }
+  
+  if (showActivityLog) {
+      return <ActivityLogScreen 
+                logs={currentUser.activityLog || []} 
+                onClose={() => setShowActivityLog(false)}
+                t={t}
+            />
+  }
+  
+  if (showPolicy) {
+      const policyContent = showPolicy === 'privacy' ? PRIVACY_POLICY_HTML : RESPONSIBLE_AI_POLICY_HTML;
+      const policyTitle = showPolicy === 'privacy' ? t('privacyPolicy') : t('responsibleAiPolicy');
+      return (
+          <div className="fixed inset-0 bg-slate-900 bg-opacity-95 z-50 flex flex-col p-4 md:p-8">
+              <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-bold text-white">{policyTitle}</h2>
+                  <button onClick={() => setShowPolicy(null)} className="p-2 rounded-full bg-slate-700 hover:bg-slate-600 transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                  </button>
+              </div>
+              <div className="overflow-y-auto flex-grow bg-slate-800 rounded-lg p-6" dangerouslySetInnerHTML={{ __html: policyContent }}></div>
           </div>
-          {isDevOverrideActive && (
-              <span className="ml-2 bg-sky-500/20 text-sky-300 text-xs font-bold px-2 py-1 rounded-full border border-sky-500/30">
-                  {t.devOverrideActive}
-              </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-           <button onClick={createNewSession} className="p-2 rounded-full hover:bg-slate-800 transition-colors" title={t.newChat}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          </button>
-           <button onClick={() => setShowSettings(true)} className="p-2 rounded-full hover:bg-slate-800 transition-colors" title={t.settingsTitle}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-          </button>
-          <button onClick={handleLogout} className="p-2 rounded-full hover:bg-slate-800 transition-colors" title={t.logout}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-          </button>
-        </div>
-      </header>
+      );
+  }
 
-      {/* Chat Area */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-6">
-        <div className="max-w-4xl mx-auto">
-          {error && <div className="bg-red-500/20 border border-red-500 text-red-300 p-3 rounded-lg mb-4">{error}</div>}
-          {currentSession ? (
-            currentSession.messages.map((msg, index) => (
-              <div key={msg.id} className={`flex items-start gap-3 my-4 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                {msg.role === 'model' && <div className="w-8 h-8 rounded-full bg-sky-500 flex-shrink-0"></div>}
-                <div className={`p-4 rounded-2xl max-w-xl ${msg.role === 'user' ? 'bg-sky-600 rounded-br-none' : 'bg-slate-700 rounded-bl-none'}`}>
-                   {msg.isGenerating ? <div className="animate-pulse">...</div> : <p className="whitespace-pre-wrap">{msg.text}</p>}
+  const greeting = getGreeting(appSettings.language);
+
+  // Main App UI
+  return (
+    <div className="flex h-screen bg-slate-900 text-slate-100 overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-64 bg-slate-950/50 flex-col p-4 hidden md:flex">
+        <div className="flex items-center justify-between mb-6">
+           <h1 className="text-xl font-bold text-sky-400">{t('appTitle')}</h1>
+            <button onClick={() => setShowSettings(true)} className="p-2 rounded-md hover:bg-slate-700 transition-colors" aria-label="Open settings">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.532 1.532 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.532 1.532 0 01-.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106A1.532 1.532 0 0111.49 3.17zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                </svg>
+            </button>
+        </div>
+        <button onClick={() => createNewSession()} className="w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors mb-4">
+            {t('newChat')}
+        </button>
+        <div className="flex-grow overflow-y-auto pr-2">
+            <h2 className="text-xs font-semibold uppercase text-slate-400 mb-2">{t('history')}</h2>
+            <ul className="space-y-1">
+                {[...sessions].sort((a,b) => b.createdAt - a.createdAt).map(session => (
+                    <li key={session.id}>
+                        <a href="#"
+                           onClick={(e) => { e.preventDefault(); switchSession(session.id); }}
+                           className={`flex justify-between items-center w-full text-left p-2 rounded-md text-sm truncate ${activeSessionId === session.id ? 'bg-sky-500/20 text-sky-300' : 'hover:bg-slate-800'}`}
+                        >
+                           <span className="flex-grow truncate">{session.title}</span>
+                           <button onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }} className="ml-2 p-1 opacity-50 hover:opacity-100" aria-label="Delete session">
+                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
+                           </button>
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col bg-slate-800/50">
+        <header className="md:hidden flex items-center justify-between p-2 bg-slate-950/50">
+             <h1 className="text-lg font-bold text-sky-400">{t('appTitle')}</h1>
+             <button onClick={() => setShowSettings(true)} className="p-2 rounded-md hover:bg-slate-700 transition-colors" aria-label="Open settings">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.532 1.532 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.532 1.532 0 01-.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106A1.532 1.532 0 0111.49 3.17zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                </svg>
+            </button>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+            {messages.length === 0 && !isLoading ? (
+              <WelcomeScreen greeting={greeting} username={currentUser.username} t={t} />
+            ) : (
+               messages.map(msg => <MessageBubble key={msg.id} message={msg} settings={appSettings} onResend={resendPrompt} />)
+            )}
+             <div ref={messagesEndRef} />
+        </div>
+        
+        <div className="p-2 md:p-4 bg-slate-900/40 border-t border-slate-700">
+            {appSettings.enableEphemeralSessions && (
+                <div className="text-center text-xs text-amber-300 bg-amber-500/10 rounded-md py-1 px-4 mb-2 max-w-4xl mx-auto">
+                    {t('ephemeralModeActive')}
+                </div>
+            )}
+            {appSettings.enableQuickActions && (
+              <div className="px-4 md:px-6 mb-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {quickActions.map((action) => (
+                    <button
+                      key={action.nameKey}
+                      onClick={() => handleQuickAction(t(action.promptKey))}
+                      className="flex items-center gap-2 bg-slate-700/50 hover:bg-sky-500/30 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-sm transition-colors duration-200"
+                      aria-label={`Quick action: ${t(action.nameKey)}`}
+                    >
+                      {action.icon}
+                      <span>{t(action.nameKey)}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="text-center text-slate-400 mt-20">
-              <h2 className="text-2xl font-bold text-white mb-2">{t.chatTitle}</h2>
-              <p>{settings.appleIntelligence ? t.appleIntelligenceInitialMessage : t.initialMessage}</p>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
+            )}
+            <form onSubmit={handleSend} className="max-w-4xl mx-auto">
+              <div className="relative">
+                {uploadedImages.length > 0 && (
+                  <div className="p-2 bg-slate-700/50 rounded-t-lg flex items-center gap-2">
+                    {uploadedImages.map((img, index) => (
+                      <div key={index} className="relative group">
+                        <img src={img} alt={`upload-preview-${index}`} className="h-16 w-16 object-cover rounded-md" />
+                        <button onClick={() => removeImage(index)} className="absolute top-0 right-0 -mt-1 -mr-1 bg-red-600 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Remove image" > &times; </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <textarea
+                  ref={promptInputRef}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                  placeholder={t('inputPlaceholder')}
+                  className="w-full pl-12 pr-28 py-3 bg-slate-700/50 text-slate-100 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none resize-none border-transparent placeholder-slate-400"
+                  rows={Math.max(1, Math.min(6, prompt.split('\n').length))}
+                  disabled={isLoading}
+                />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
+                   <label htmlFor="image-upload" className="cursor-pointer p-2 text-slate-400 hover:text-sky-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"> <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /> </svg>
+                  </label>
+                  <input id="image-upload" type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  
+                  {appSettings.voiceCommands && (
+                    <button type="button" onClick={toggleRecording} className={`p-2 ${isRecording ? 'text-red-500 animate-pulse' : 'text-slate-400 hover:text-sky-400'}`} aria-label={isRecording ? 'Stop recording' : 'Start recording'}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"> <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" /> <path d="M5.5 4.5a2.5 2.5 0 015 0v6a2.5 2.5 0 01-5 0V4.5z" /> <path d="M10 15a4 4 0 004-4h-1.5a2.5 2.5 0 01-5 0H6a4 4 0 004 4z" /> </svg>
+                    </button>
+                  )}
+                </div>
+                <button type="submit" disabled={isLoading || (!prompt.trim() && uploadedImages.length === 0)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-sky-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-sky-500 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors" > {isLoading ? t('loading') : t('send')} </button>
+              </div>
+            </form>
         </div>
       </main>
-
-      {/* Input Area */}
-      <footer className="p-4 md:p-6 border-t border-slate-800 bg-slate-900/80 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto">
-          <div className="relative">
-             {showQuickActions && <QuickActionsMenu />}
-            <textarea
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder={t.inputPlaceholder}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 pl-14 pr-24 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
-              rows={1}
-            />
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                <button onClick={() => setShowQuickActions(s => !s)} className="p-2 rounded-full hover:bg-slate-700 transition-colors" title={t.quickActions}>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 2a1 1 0 00-1 1v1.586l-2.707 2.707a1 1 0 000 1.414l4 4a1 1 0 001.414 0l4-4a1 1 0 000-1.414L8 4.586V3a1 1 0 00-1-1H5zm10 0a1 1 0 00-1 1v4.586l-2.707 2.707a1 1 0 000 1.414l4 4a1 1 0 001.414 0l4-4a1 1 0 000-1.414L18 7.586V3a1 1 0 00-1-1h-2z" clipRule="evenodd" /></svg>
-                </button>
-                 <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full hover:bg-slate-700 transition-colors" title={t.attachImages}>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                 </button>
-            </div>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" multiple className="hidden" />
-
-              <button onClick={() => handleSend()} disabled={isGenerating} className="bg-sky-600 rounded-full p-2 text-white hover:bg-sky-700 disabled:bg-slate-600 transition-colors">
-                 {isGenerating ? 
-                    <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    :
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-                 }
-              </button>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
+
+
+// --- Sub-components ---
+type Translator = (key: string, replacements?: Record<string, string>) => string;
+
+const WelcomeScreen: React.FC<{ greeting: string, username: string, t: Translator }> = ({ greeting, username, t }) => (
+  <div className="flex flex-col items-center justify-center h-full text-center">
+      <div className="bg-sky-500/10 rounded-full p-4 mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-sky-400" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a1 1 0 011-1h14a1 1 0 110 2H3a1 1 0 01-1-1z" />
+        </svg>
+      </div>
+      <h2 className="text-3xl font-bold text-slate-100">{t('welcomeGreeting', { greeting, username })}</h2>
+      <p className="text-slate-400 mt-2">{t('welcomeMessage')}</p>
+  </div>
+);
+
+const MessageBubble: React.FC<{ message: Message, settings: AppSettings, onResend: (message: Message) => void }> = ({ message, settings, onResend }) => {
+    const isUser = message.role === 'user';
+    const [showRaw, setShowRaw] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+        if (message.rawResponse) {
+            navigator.clipboard.writeText(message.rawResponse);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+    
+    // A simple markdown-to-html converter
+    const formatText = (text: string) => {
+        let html = text
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") // Basic sanitation
+            .replace(/\*\*(.*?)\*\*|__(.*?)__/g, '<strong>$1$2</strong>')
+            .replace(/\*(.*?)\*|_(.*?)_/g, '<em>$1$2</em>')
+            .replace(/~~(.*?)~~/g, '<del>$1</del>')
+            .replace(/`([^`]+)`/g, '<code class="bg-slate-700/50 text-emerald-400 rounded px-1 py-0.5 text-sm font-mono">$1</code>')
+            .replace(/\n/g, '<br />');
+
+        html = html.replace(/(<br \/>\s*){3,}/g, '<br /><br />');
+        html = html.replace(/^\s*([-*]|\d+\.)\s/gm, (match) => `<li>${match.replace(/[-*]|\d+\./, '').trim()}</li>`)
+                   .replace(/<\/li>(<br \/>\s*<li>)+/g, '</li><li>')
+                   .replace(/(<li>.*<\/li>)/gs, (list) => {
+                       const listType = list.includes('1.') ? 'ol' : 'ul';
+                       return `<${listType}>${list}</${listType}>`;
+                   })
+                   .replace(/<\/([ou]l)><br \/><\1>/g, '');
+
+        return html;
+    };
+
+    return (
+        <div className={`flex gap-3 group ${isUser ? 'justify-end' : ''}`}>
+            {!isUser && (
+                <div className="w-8 h-8 rounded-full bg-sky-500/20 flex-shrink-0 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-sky-400" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v1H5V4zM5 7h10v9a2 2 0 01-2 2H7a2 2 0 01-2-2V7z" /><path d="M9 9a1 1 0 00-1 1v3a1 1 0 002 0v-3a1 1 0 00-1-1z" /></svg>
+                </div>
+            )}
+            {isUser && (
+                <div className="flex items-center self-end -mr-2">
+                    <button onClick={() => onResend(message)} className="p-2 text-slate-500 hover:text-sky-400 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Resend prompt">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M4 4l16 16" />
+                        </svg>
+                    </button>
+                </div>
+            )}
+            <div className={`max-w-xl ${isUser ? 'items-end' : ''}`}>
+                 <div className={`px-4 py-3 rounded-2xl ${isUser ? 'bg-sky-600 text-white rounded-br-none' : 'bg-slate-700/80 text-slate-200 rounded-bl-none'}`}>
+                   {message.images && message.images.length > 0 && (
+                     <div className="flex flex-wrap gap-2 mb-2">
+                       {message.images.map((img, index) => (
+                         <img key={index} src={img} alt={`sent-image-${index}`} className="max-h-48 rounded-lg" />
+                       ))}
+                     </div>
+                   )}
+                   {message.isGenerating && !message.text ? (
+                     <div className="flex items-center gap-2">
+                        <span className="animate-pulse block w-2 h-2 bg-slate-400 rounded-full"></span>
+                        <span className="animate-pulse block w-2 h-2 bg-slate-400 rounded-full" style={{animationDelay: '0.2s'}}></span>
+                        <span className="animate-pulse block w-2 h-2 bg-slate-400 rounded-full" style={{animationDelay: '0.4s'}}></span>
+                    </div>
+                   ) : (
+                     <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: formatText(message.text) }} />
+                   )}
+                 </div>
+                 {message.securityScanResult && !message.securityScanResult.isSafe && (
+                   <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-300">
+                     <strong>Warning:</strong> Potential {message.securityScanResult.issues.join(', ')} detected.
+                   </div>
+                 )}
+                 <div className="text-xs text-slate-500 mt-1 px-1 flex items-center">
+                    <span>{new Date(message.timestamp).toLocaleTimeString()}</span>
+                    {settings.showLatency && message.latency && <span className="ml-2">({(message.latency / 1000).toFixed(1)}s)</span>}
+                 </div>
+                 {settings.developerMode && message.role === 'model' && message.rawResponse && (
+                    <div className="mt-2 flex items-center gap-2">
+                        <button onClick={() => setShowRaw(!showRaw)} className="text-xs text-slate-500 hover:text-sky-400">
+                            {showRaw ? '</> Hide Raw' : '</> Show Raw'}
+                        </button>
+                         <button onClick={handleCopy} className="text-xs text-slate-500 hover:text-sky-400">
+                           {copied ? 'Copied!' : 'Copy Raw'}
+                        </button>
+                        {showRaw && (
+                            <pre className="mt-1 p-2 bg-slate-900 rounded text-xs overflow-x-auto text-slate-300 w-full">
+                                <code>{message.rawResponse}</code>
+                            </pre>
+                        )}
+                    </div>
+                )}
+            </div>
+             {isUser && (
+                <div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-300" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+const SettingsScreen: React.FC<{
+    settings: AppSettings,
+    onSettingsChange: React.Dispatch<React.SetStateAction<AppSettings>>,
+    onClose: () => void,
+    onLogout: () => void,
+    onShowPolicy: (policy: 'privacy' | 'responsible_ai') => void,
+    onShowActivityLog: () => void,
+    currentUser: User,
+    updateUser: (user: User) => void,
+    logActivity: (action: string, details?: string) => void,
+    t: Translator,
+    isDevModeUnlocked: boolean,
+    setIsDevModeUnlocked: React.Dispatch<React.SetStateAction<boolean>>
+}> = ({ settings, onSettingsChange, onClose, onLogout, onShowPolicy, onShowActivityLog, currentUser, updateUser, logActivity, t, isDevModeUnlocked, setIsDevModeUnlocked }) => {
+    
+    const [localSettings, setLocalSettings] = useState(settings);
+    const [pinPromptVisible, setPinPromptVisible] = useState(false);
+
+    const handleToggle = (key: keyof AppSettings) => {
+        setLocalSettings(prev => ({...prev, [key]: !prev[key]}));
+    };
+    
+    const handleSlider = (key: 'customTemperature' | 'customTopP', value: string) => {
+        setLocalSettings(prev => ({...prev, [key]: parseFloat(value) }));
+    };
+
+    const handleSave = () => {
+        onSettingsChange(localSettings); // Update appSettings for UI reactivity
+        if (currentUser) {
+            const newLog: ActivityLog = {
+                id: `log_${Date.now()}`,
+                timestamp: Date.now(),
+                action: 'Settings Updated',
+            };
+            const updatedUser: User = {
+                ...currentUser,
+                settings: localSettings,
+                activityLog: [...(currentUser.activityLog || []), newLog],
+            };
+            updateUser(updatedUser); // Single atomic update for the user object
+        }
+        onClose();
+    };
+
+    const handleDevModeToggle = () => {
+        if (!localSettings.developerMode && !isDevModeUnlocked) {
+            setPinPromptVisible(true);
+        } else {
+            setLocalSettings(prev => ({...prev, developerMode: false }));
+            setIsDevModeUnlocked(false);
+        }
+    };
+
+    const onPinSuccess = () => {
+        setIsDevModeUnlocked(true);
+        setLocalSettings(prev => ({...prev, developerMode: true }));
+        setPinPromptVisible(false);
+    };
+    
+    const languages: { code: Language, name: string }[] = [
+        { code: 'en', name: 'English' },
+        { code: 'ar', name: 'العربية' },
+        { code: 'aii', name: 'ܐܬܘܪܝܐ' },
+    ];
+
+    return (
+        <div className="fixed inset-0 bg-slate-900 bg-opacity-95 z-50 flex flex-col p-4 md:p-8">
+            {pinPromptVisible && (
+                <PinPromptModal
+                    onClose={() => setPinPromptVisible(false)}
+                    onSuccess={onPinSuccess}
+                />
+            )}
+            <div className="flex justify-between items-center mb-6 flex-shrink-0">
+                <h2 className="text-2xl font-bold text-white">{t('settingsTitle')}</h2>
+                <button onClick={handleSave} className="bg-sky-600 hover:bg-sky-500 text-white font-semibold py-1 px-3 rounded-lg transition-colors text-sm">
+                    Save & Close
+                </button>
+            </div>
+
+            <div className="overflow-y-auto flex-grow space-y-8 pr-4">
+                <SettingsSection title={t('general')}>
+                    <SettingsRow label={t('language')}>
+                        <div className="flex items-center gap-1 bg-slate-700 p-1 rounded-lg">
+                           {languages.map(lang => (
+                               <button 
+                                key={lang.code} 
+                                onClick={() => setLocalSettings(p => ({...p, language: lang.code}))}
+                                className={`px-3 py-1 text-sm rounded-md transition-colors ${localSettings.language === lang.code ? 'bg-sky-600 text-white' : 'hover:bg-slate-600/50 text-slate-300'}`}
+                                >
+                                   {lang.name}
+                               </button>
+                           ))}
+                        </div>
+                    </SettingsRow>
+                    <ToggleRow label={t('saveConversations')} enabled={localSettings.saveConversations} onToggle={() => handleToggle('saveConversations')} />
+                </SettingsSection>
+
+                <SettingsSection title={t('features')}>
+                    <ToggleRow label={t('voiceCommands')} enabled={localSettings.voiceCommands} onToggle={() => handleToggle('voiceCommands')} />
+                    <ToggleRow label={t('enableQuickActions')} enabled={localSettings.enableQuickActions} onToggle={() => handleToggle('enableQuickActions')} />
+                    <ToggleRow label={t('textToSpeech')} enabled={localSettings.textToSpeech} onToggle={() => handleToggle('textToSpeech')} />
+                </SettingsSection>
+                
+                <SettingsSection title={t('privacyAndSecurity')}>
+                    <ToggleRow label={t('securityScan')} enabled={localSettings.enableSecurityScan} onToggle={() => handleToggle('enableSecurityScan')} description={t('securityScanDesc')}/>
+                    <ToggleRow label={t('warnSensitiveTopics')} enabled={localSettings.warnSensitiveTopics} onToggle={() => handleToggle('warnSensitiveTopics')} description={t('warnSensitiveTopicsDesc')}/>
+                    <ToggleRow label={t('stripImageMetadata')} enabled={localSettings.stripImageMetadata} onToggle={() => handleToggle('stripImageMetadata')} description={t('stripImageMetadataDesc')}/>
+                    <ToggleRow label={t('enableEphemeralSessions')} enabled={localSettings.enableEphemeralSessions} onToggle={() => handleToggle('enableEphemeralSessions')} description={t('enableEphemeralSessionsDesc')}/>
+                    <ToggleRow label={t('enablePrivacySandbox')} enabled={localSettings.enablePrivacySandbox} onToggle={() => handleToggle('enablePrivacySandbox')} description={t('enablePrivacySandboxDesc')}/>
+                     <div className="pt-2">
+                        <button onClick={onShowActivityLog} className="text-sky-400 hover:underline text-sm">{t('viewActivityLog')}</button>
+                    </div>
+                </SettingsSection>
+                
+                <SettingsSection title={t('developerOptions')}>
+                    <ToggleRow label="Developer Mode" enabled={localSettings.developerMode} onToggle={handleDevModeToggle} description="Enables debugging features. Access is PIN protected."/>
+                    {localSettings.developerMode && (
+                      <div className="pl-4 border-l-2 border-slate-700 space-y-4 pt-4">
+                        <ToggleRow label={t('showLatency')} enabled={localSettings.showLatency} onToggle={() => handleToggle('showLatency')} description={t('showLatencyDesc')}/>
+                        <ToggleRow label={t('useAdvancedModelSettings')} enabled={localSettings.useAdvancedModelSettings} onToggle={() => handleToggle('useAdvancedModelSettings')} />
+                        {localSettings.useAdvancedModelSettings && (
+                           <div className="space-y-4">
+                                <SliderRow label={t('temperature')} value={localSettings.customTemperature} min={0} max={1} step={0.1} onChange={(e) => handleSlider('customTemperature', e.target.value)} />
+                                <SliderRow label={t('topP')} value={localSettings.customTopP} min={0} max={1} step={0.1} onChange={(e) => handleSlider('customTopP', e.target.value)} />
+                           </div>
+                        )}
+                        <ToggleRow label="Use Custom System Prompt" enabled={localSettings.useCustomSystemPrompt} onToggle={() => handleToggle('useCustomSystemPrompt')} />
+                        {localSettings.useCustomSystemPrompt && (
+                           <textarea value={localSettings.customSystemPrompt} onChange={(e) => setLocalSettings(prev => ({...prev, customSystemPrompt: e.target.value}))}
+                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-sm focus:ring-sky-500 focus:border-sky-500 resize-y" rows={3} placeholder="e.g., You are a helpful assistant that speaks like a pirate."/>
+                        )}
+                      </div>
+                    )}
+                </SettingsSection>
+                
+                <SettingsSection title={t('integrations')}>
+                    <p className="text-sm text-slate-400 mb-4">{t('integrationsDesc')}</p>
+                    <ToggleRow label="Google Drive" enabled={localSettings.thirdPartyIntegrations.googleDrive} onToggle={() => setLocalSettings(p => ({...p, thirdPartyIntegrations: {...p.thirdPartyIntegrations, googleDrive: !p.thirdPartyIntegrations.googleDrive}}))} />
+                    <ToggleRow label="Slack" enabled={localSettings.thirdPartyIntegrations.slack} onToggle={() => setLocalSettings(p => ({...p, thirdPartyIntegrations: {...p.thirdPartyIntegrations, slack: !p.thirdPartyIntegrations.slack}}))} />
+                </SettingsSection>
+
+                <SettingsSection title={t('account')}>
+                     <p className="text-slate-400 mb-4">{t('loggedInAs', { username: currentUser.username })}</p>
+                     <button onClick={onLogout} className="bg-red-600/80 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">
+                        {t('logOut')}
+                    </button>
+                </SettingsSection>
+                
+                <SettingsSection title={t('legal')}>
+                    <div className="flex flex-col items-start space-y-2">
+                        <button onClick={() => onShowPolicy('privacy')} className="text-sky-400 hover:underline">{t('privacyPolicy')}</button>
+                        <button onClick={() => onShowPolicy('responsible_ai')} className="text-sky-400 hover:underline">{t('responsibleAiPolicy')}</button>
+                    </div>
+                </SettingsSection>
+            </div>
+             <div className="text-center text-xs text-slate-500 mt-4 flex-shrink-0">
+                Betalive AI v2.3.1
+            </div>
+        </div>
+    );
+};
+
+const PinPromptModal: React.FC<{onClose: () => void, onSuccess: () => void}> = ({onClose, onSuccess}) => {
+    const [pin, setPin] = useState('');
+    const [error, setError] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        inputRef.current?.focus();
+    }, []);
+    
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (pin === '354687') {
+            onSuccess();
+        } else {
+            setError('Incorrect PIN. Please try again.');
+            setPin('');
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-800 rounded-lg shadow-xl w-full max-w-xs p-6 text-center">
+                <h3 className="text-lg font-bold text-white mb-2">Enter Developer PIN</h3>
+                <p className="text-sm text-slate-400 mb-4">Please enter the PIN to unlock developer mode.</p>
+                <form onSubmit={handleSubmit}>
+                    <input
+                        ref={inputRef}
+                        type="password"
+                        value={pin}
+                        onChange={e => setPin(e.target.value)}
+                        className="w-full text-center px-4 py-2 bg-slate-700/50 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none border-transparent placeholder-slate-400 tracking-widest"
+                        maxLength={6}
+                    />
+                    {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+                    <div className="flex gap-3 mt-6">
+                        <button type="button" onClick={onClose} className="w-full bg-slate-600 hover:bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" className="w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                            Unlock
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const SettingsSection: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => (
+    <div className="border-b border-slate-700/50 pb-6">
+        <h3 className="text-lg font-semibold text-sky-400 mb-4">{title}</h3>
+        <div className="space-y-4">{children}</div>
+    </div>
+);
+
+const SettingsRow: React.FC<{ label: string, children: React.ReactNode }> = ({ label, children }) => (
+    <div className="flex items-center justify-between">
+        <label className="text-slate-300 text-sm">{label}</label>
+        {children}
+    </div>
+);
+
+const ToggleRow: React.FC<{ label: string, enabled: boolean, onToggle: () => void, description?: string }> = ({ label, enabled, onToggle, description }) => (
+    <div>
+        <div className="flex items-center justify-between">
+            <label className="text-slate-300 text-sm">{label}</label>
+            <button onClick={onToggle} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${enabled ? 'bg-sky-500' : 'bg-slate-600'}`}>
+                <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'}`}/>
+            </button>
+        </div>
+        {description && <p className="text-xs text-slate-500 mt-1">{description}</p>}
+    </div>
+);
+
+const SliderRow: React.FC<{ label: string, value: number, min: number, max: number, step: number, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }> = ({ label, value, min, max, step, onChange }) => (
+    <div className="flex items-center justify-between">
+        <label className="text-slate-300 text-sm">{label}</label>
+        <div className="flex items-center gap-3">
+            <input type="range" min={min} max={max} step={step} value={value} onChange={onChange} className="w-32 accent-sky-500" />
+            <span className="text-sm font-mono text-slate-400 w-8 text-center">{value.toFixed(1)}</span>
+        </div>
+    </div>
+);
+
+const ActivityLogScreen: React.FC<{ logs: ActivityLog[], onClose: () => void, t: Translator }> = ({ logs, onClose, t}) => {
+    return (
+        <div className="fixed inset-0 bg-slate-900 bg-opacity-95 z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl h-full max-h-[80vh] flex flex-col">
+                <div className="flex justify-between items-center p-4 border-b border-slate-700">
+                    <h2 className="text-xl font-bold text-white">{t('activityLog')}</h2>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div className="overflow-y-auto flex-grow p-4">
+                    <table className="w-full text-sm text-left text-slate-300">
+                        <thead className="text-xs text-slate-400 uppercase bg-slate-700/50">
+                            <tr>
+                                <th scope="col" className="px-4 py-2">Timestamp</th>
+                                <th scope="col" className="px-4 py-2">Action</th>
+                                <th scope="col" className="px-4 py-2">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {[...logs].reverse().map(log => (
+                                <tr key={log.id} className="border-b border-slate-700 hover:bg-slate-700/30">
+                                    <td className="px-4 py-2 font-mono">{new Date(log.timestamp).toLocaleString()}</td>
+                                    <td className="px-4 py-2">{log.action}</td>
+                                    <td className="px-4 py-2 text-slate-400">{log.details || 'N/A'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const AuthScreen: React.FC<{
+    onLogin: (credentials: Omit<User, 'settings' | 'sessions' | 'id' | 'activityLog'>) => void;
+    onRegister: (user: Omit<User, 'settings' | 'sessions' | 'id' | 'activityLog'>) => void;
+    authMode: AuthMode;
+    setAuthMode: React.Dispatch<React.SetStateAction<AuthMode>>;
+    t: Translator;
+}> = ({ onLogin, onRegister, authMode, setAuthMode, t }) => {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(authMode === 'login') {
+            onLogin({ username, password });
+        } else {
+            onRegister({ username, password });
+        }
+    };
+
+    return (
+        <div className="flex items-center justify-center h-screen bg-slate-900">
+            <div className="w-full max-w-sm p-8 bg-slate-800 rounded-2xl shadow-lg">
+                <h1 className="text-3xl font-bold text-sky-400 text-center mb-2">{t('appTitle')}</h1>
+                <p className="text-slate-400 text-center mb-8">{authMode === 'login' ? t('welcomeBack') : t('createAccount')}</p>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                        <label className="text-sm font-medium text-slate-300">{t('username')}</label>
+                        <input type="text" value={username} onChange={e => setUsername(e.target.value)}
+                         className="w-full mt-1 px-4 py-2 bg-slate-700/50 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none border-transparent placeholder-slate-400" required />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-slate-300">{t('password')}</label>
+                        <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                        className="w-full mt-1 px-4 py-2 bg-slate-700/50 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none border-transparent placeholder-slate-400" required />
+                    </div>
+                    <button type="submit" className="w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                        {authMode === 'login' ? t('logIn') : t('register')}
+                    </button>
+                </form>
+                <p className="text-center text-sm text-slate-400 mt-6">
+                    {authMode === 'login' ? t('dontHaveAccount') : t('alreadyHaveAccount')}
+                    <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="font-semibold text-sky-400 hover:underline ml-1">
+                        {authMode === 'login' ? t('signUp') : t('logIn')}
+                    </button>
+                </p>
+            </div>
+        </div>
+    );
+};
+
 
 export default App;
