@@ -12,11 +12,17 @@ export interface Message {
   role: Role;
   text: string;
   images?: string[];
+  generatedImages?: string[]; // For AI-generated images
+  videoUrl?: string; // For uploaded or generated videos
+  mode?: 'chat' | 'image' | 'creator' | 'video'; // To distinguish message type
   timestamp: number;
   isGenerating?: boolean;
   securityScanResult?: SecurityScanResult;
   rawResponse?: string;
   latency?: number; // Time in ms for model response
+  isSensitive?: boolean; // For proactive security warnings
+  isRevealed?: boolean; // For proactive security warnings
+  originalText?: string; // To store original text for sensitive messages
 }
 
 export interface ChatSession {
@@ -40,6 +46,7 @@ export interface ThirdPartyIntegrations {
 
 export interface AppSettings {
   language: Language;
+  theme: 'light' | 'dark';
   enabledModels: EnabledModels;
   voiceCommands: boolean;
   textToSpeech: boolean;
@@ -61,6 +68,7 @@ export interface AppSettings {
   warnSensitiveTopics: boolean;
   stripImageMetadata: boolean;
   enableEphemeralSessions: boolean;
+  proactiveSecurityWarnings: boolean;
 }
 
 export interface ActivityLog {
@@ -77,6 +85,6 @@ export interface User {
   // For this local-first app, we'll use a simple string for demonstration.
   password: string; 
   settings: AppSettings;
-  sessions: ChatSession[];
+  session: ChatSession;
   activityLog: ActivityLog[];
 }

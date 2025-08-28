@@ -6,32 +6,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Betalive AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       body {
         font-family: 'Readex Pro', sans-serif;
-        background-color: #0f172a; /* Static dark background */
-        color: #ffffff;
       }
 
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar {
+      /* Custom Scrollbar - Dark */
+      html.dark ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
       }
-      ::-webkit-scrollbar-track {
+      html.dark ::-webkit-scrollbar-track {
         background: rgba(255, 255, 255, 0.05);
         border-radius: 10px;
       }
-      ::-webkit-scrollbar-thumb {
+      html.dark ::-webkit-scrollbar-thumb {
         background: rgba(14, 165, 233, 0.4); /* sky-500 with opacity */
         border-radius: 10px;
       }
-      ::-webkit-scrollbar-thumb:hover {
+      html.dark ::-webkit-scrollbar-thumb:hover {
         background: rgba(14, 165, 233, 0.7);
       }
+
+      /* Custom Scrollbar - Light */
+      html:not(.dark) ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      html:not(.dark) ::-webkit-scrollbar-track {
+        background: #f1f5f9; /* slate-100 */
+        border-radius: 10px;
+      }
+      html:not(.dark) ::-webkit-scrollbar-thumb {
+        background: #cbd5e0; /* slate-300 */
+        border-radius: 10px;
+      }
+      html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8; /* slate-400 */
+      }
+      
       #yt-player {
         position: absolute;
         top: -9999px;
